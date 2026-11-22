@@ -126,7 +126,7 @@ generator-specificity seen in the filter.
 │   └── ...                         historical wrappers
 ├── configs/                  generated dataset YAMLs (absolute paths)
 ├── runs/                     57 Ultralytics run dirs, weights included
-├── results/                  JSONs, REPORT.md, all_results.md, RUN_STATUS.md,
+├── results/                  JSONs, REPORT.md, all_results.md,
 │                             gate_cyclegan.pkl, unet_dehazer*.pt
 ├── logs/                     training/eval/orchestration logs (141 MB)
 └── data/                     vtt_clear symlink tree + filtered images (1.2 GB)
@@ -154,7 +154,7 @@ cd experiments/02_flir_gate_ir
 # rebuild generated YAMLs for this checkout
 python -m src.build_direct init
 
-# inside a live salloc allocation (never as a direct salloc child)
+# as a GPU job inside a live allocation
 srun --jobid="$SLURM_JOB_ID" --overlap --cpus-per-task=16 --gres=gpu:1 \
      bash scripts/run_main_100.sh
 srun --jobid="$SLURM_JOB_ID" --overlap --cpus-per-task=16 --gres=gpu:1 \
@@ -180,7 +180,11 @@ python -m src.eval_detector \
     --name g1_unet_cd75_100_fog_vtt --force
 ```
 
-Exact state and the U-Net regeneration recipe: `results/RUN_STATUS.md`.
+Run state: stopped cleanly at epoch 27/100 (patience 25). Checkpoints are in
+`runs/g1_unet_cd75_yolo12s_100/weights/{last,best}.pt`, the filtered fog input
+in `data/filtered/unet_cd75`, and the CycleDiff-trained filter in
+`results/unet_dehazer_cyclediff75.pt`; the commands above resume training and
+then score the clear and fog test sets.
 
 ## Reproducibility notes
 

@@ -33,6 +33,16 @@ experiments/*/audit/preds/
 experiments/*/audit/*_labelr_*/
 experiments/*/archive/
 
+# ---- generated configuration and metric files ----
+# Dataset YAMLs and per-run metric JSONs are produced by the builders and
+# evaluation scripts; the reported numbers live in the Markdown reports.
+experiments/*/configs/
+experiments/*/method3_cyclegan/datasets/
+experiments/*/results/*.json
+experiments/*/results/**/*.json
+experiments/01_flir_weather_translation/inspect_report.json
+experiments/01_flir_weather_translation/scripts/dsert_files_snow.json
+
 # ---- weights and binary model material ----
 *.pt
 *.pth
@@ -103,6 +113,13 @@ env/
 experiments/06_gate_ir_scaffolding/
 experiments/*/external/
 
+# ---- local agent/working notes (not part of the research project) ----
+rules.md
+
 # ---- agent tooling / scratch ----
 .opencode/
 scratch/
+experiments/*/method1_classical/results_*.json
+experiments/*/method2_depth/results_*.json
+experiments/*/method3_cyclegan/results/
+experiments/*/method3_cyclegan/*.json

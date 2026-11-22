@@ -5,7 +5,7 @@ RGB-IR fusion ladder. No `ultralytics`, no `torch_geometric`/PyG, no
 experiment-08 imports. The testbed implements the five rungs that the
 minimal first pass actually trains (E10, E14, E21, E30, E35) exactly at the
 `Fuse(f_ir, f_rgb) -> f_fused` boundary described in
-`../EXPERIMENT_PLAN.md` §5.6 and §6.
+`../EXPERIMENT_PLAN.md` §5–§6.
 
 ## Contract
 
@@ -100,7 +100,7 @@ callers must still honour `valid`.
 
 ```bash
 cd experiments/09_graph_fusion/testbed_gfyolo
-PYTHONPATH=. /home2/home/preetham_g/.conda/envs/gateir/bin/python \
+PYTHONPATH=. python \
     -m pytest test_fuse_modules.py -q
 ```
 

@@ -133,7 +133,7 @@ login node:
 
 ```bash
 tmux new-session -d -s exp07_run \
-  'PY=/home2/home/preetham_g/.conda/envs/gateir/bin/python \
+  'PY=python \
    bash experiments/07_flir_adverse_conditions/scripts/supervise.sh'
 ```
 

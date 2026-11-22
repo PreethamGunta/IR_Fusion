@@ -53,7 +53,7 @@ python eval/detect_eval.py --run v8s --split test
 
 ## Results (test split)
 
-Source: `results/eval_*_test.json` (`overall` block).
+From the `overall` block of the per-model evaluation files. Per-run evaluation JSONs are produced locally by the evaluation scripts and are not versioned; the tables below are the record.
 
 | Model | mAP50-95 | mAP50 | APm clear | APm fog | APm rain | clear−fog (APm) |
 |---|---:|---:|---:|---:|---:|---:|

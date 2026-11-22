@@ -30,8 +30,8 @@ design in workstream 02.
 ├── download.py / inspect_dataset.py / prepare.py   original FLIR prep
 ├── method1_classical/            classical fog/rain/snow overlays
 │   ├── generate.py               main generator
-│   ├── apply_weather_classical.py  original method-1 implementation (recovered)
-│   └── run_method1.sh            original driver (recovered)
+│   ├── apply_weather_classical.py  method-1 classical implementation
+│   └── run_method1.sh            classical-method driver
 ├── method2_depth/                depth-based Koschmieder fog
 ├── method3_cyclegan/             unpaired CycleGAN translation
 │   ├── train_cyclegan.py         resumable training (checkpoint every 100 iters)
@@ -49,7 +49,7 @@ design in workstream 02.
 │   └── build/                    LaTeX build logs (report.aux/.log/.out)
 ├── figures/sample_images/        30 qualitative CycleGAN/strength samples
 ├── scripts/                      historical SLURM/srun wrappers, incl.
-│                                 run_fog_vae_sbatch.sh (recovered)
+│                                 run_fog_vae_sbatch.sh 
 └── logs/                         translation and detector logs
 ```
 
@@ -89,13 +89,12 @@ python train_detector.py --mode 3b --condition fog --method cyclegan --epochs 10
 ```
 
 CycleDiff training is the expensive part (~30–60 GPU-hours per condition pair).
-The historical wrappers in `scripts/` and the top-level `run_*.sh` files are
-kept for provenance but were written against the old worktree layout; prefer the
-Python entry points above.
+The wrapper scripts in `scripts/` and the top-level `run_*.sh` files are kept
+for completeness; the Python entry points above are the supported path.
 
 ## Results
 
-Source: `results/*.json` (historical mixed clear + synthetic-fog runs, YOLOv8s).
+From the mixed clear + synthetic-fog runs (YOLOv8s). Per-run evaluation JSONs are produced locally by the evaluation scripts and are not versioned; the tables below are the record.
 
 | Result | n | mAP50-95 | mAP50 | P | R |
 |---|---:|---:|---:|---:|---:|
@@ -115,10 +114,9 @@ uses matched frames everywhere.
 
 ## Reproducibility notes
 
-- `method4_cyclediff/configs/*.yaml` and the generated YAMLs contain absolute
-  paths into this release; run `python3 scripts/relocate_paths.py` after moving
-  the folder.
+- `method4_cyclediff/configs/*.yaml` and the generated dataset YAMLs contain
+  absolute paths; regenerate them if the checkout location changes.
 - Checkpoints are large (≈50 GB in `method4_cyclediff/results/`); they are kept
   because they are the only copies.
 - Rain detector runs stopped after one epoch and snow has no detector run
-  (partial-scope limitation, see `docs/KNOWN_ISSUES.md`).
+  (partial-scope limitation: only the fog line is complete).

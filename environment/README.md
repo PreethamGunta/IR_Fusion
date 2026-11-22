@@ -1,9 +1,9 @@
 # Environment
 
-The project was developed and run with a conda environment named `gateir`
-(Python 3.11.16, CUDA 12.6 wheels). The pinned versions below were read from the
-installed package metadata on 2026-11-10; they are a record of the environment,
-not a guarantee that every version is installable from the public index.
+The project runs in a conda environment named `gateir` (Python 3.11.16, CUDA
+12.6 wheels). The versions below are the ones the reported results were produced
+with; they are a record of the environment rather than a guarantee that every
+version is installable from the public index.
 
 ## Create the environment
 
@@ -29,11 +29,10 @@ pip install -r environment/requirements.txt
 - **CPU/GPU.** Training scripts assume one CUDA GPU (`--device 0`). The gate,
   filters and evaluation can run on CPU, but the U-Net and detectors are
   GPU-bound in practice.
-- **SLURM.** Every training script is designed to run inside a live `salloc`
-  allocation as an `srun` step. On this cluster, direct `salloc` children were
-  SIGTERM'd after ~6–7 minutes; see `docs/KNOWN_ISSUES.md`.
-- **Disk.** Data ≈36 GB, experiments ≈65 GB (≈54 GB of checkpoints), models
-  ≈143 MB. The original home quota was 220 GB.
+- **GPU jobs.** Training scripts assume one CUDA GPU (`--device 0`). On this
+  cluster they are launched as `srun` steps inside a live `salloc` allocation.
+- **Disk.** Data ≈54 GB, experiments ≈47 GB (≈54 GB of checkpoints), models
+  ≈143 MB.
 
 ## Packages actually used
 

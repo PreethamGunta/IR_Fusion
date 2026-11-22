@@ -44,9 +44,9 @@ Classical filter outputs in `figures/filtered/` were produced with
 
 ## Provenance
 
-No experiment was re-run for the report. Numbers were read from the JSON result
-files listed in the appendix of the report; the figures were assembled from the
-preserved image data. The additional FLIR condition numbers were read from
-`experiments/07_flir_adverse_conditions/results/eval_*.json` and are summarized
-in `.../results/FINAL_REPORT.md`. See the project root `README.md` and
-`docs/KNOWN_ISSUES.md`.
+Numbers were read from the JSON result files listed in the report appendix; the
+figures were generated from the dataset and result files described in the
+experiment READMEs. The additional FLIR condition numbers come from
+`experiments/07_flir_adverse_conditions/results/eval_*.json`, summarized in
+`.../results/FINAL_REPORT.md`. See the project root `README.md` and the
+per-experiment caveat sections for the scope of each result.

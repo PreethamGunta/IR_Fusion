@@ -7,7 +7,8 @@
 
 > **Adversarial audit status (2026-11-21, later):** the claims below were
 > independently re-checked. Do **not** cite the affected numbers until re-run.
-> See `audit/AUDIT_REPORT.md` for evidence, commands and corrections.
+> Quantitative evidence and corrected numbers are in Sections 4–5; raw
+> audit artefacts are under `audit/` and `results/`.
 >
 > - **FLIR fused teacher 0.206 / 0.598 / 0.078 is invalid.** It came from a log
 >   written before the 06:48 evaluator fix and does not reproduce: the current
@@ -808,7 +809,7 @@ PYTHONPATH=. python -m pytest ../tests -q
 # Train a teacher (inside salloc)
 srun --jobid="$SLURM_JOB_ID" --overlap --ntasks=1 --gres=gpu:1 \
      --cpus-per-task=32 bash -lc \
-     "/home2/home/preetham_g/.conda/envs/gateir/bin/python -m graphkd.training.train ..."
+     "python -m graphkd.training.train ..."
 
 # Cache teacher graphs
 PYTHONPATH=. python -m graphkd.graph.cache_teacher --weights ... --data ... --out ... --k 40
@@ -817,7 +818,7 @@ PYTHONPATH=. python -m graphkd.graph.cache_teacher --weights ... --data ... --ou
 PYTHONPATH=. python -m graphkd.training.evaluate --weights ... --data ... --split test
 
 # Parallel resume-safe driver
-PYTHONPATH=. /home2/home/preetham_g/.conda/envs/gateir/bin/python \
+PYTHONPATH=. python \
   experiments/08_graph_kd/scripts/parallel_orchestrator.py
 ```
 

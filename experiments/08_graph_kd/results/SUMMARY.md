@@ -30,8 +30,8 @@ Test split: 609 paired frames. AP is COCO mAP50-95. Deltas are relative to the G
 
 ## Provenance
 
-- **a0_gt**: weights `/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/a0_gt/weights/best.pt` sha256 `cf3236e20cbb92db…`, split `5c8e38f1a18b4d95`, n=609
-- **a2_ir_control**: weights `/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/a2_ir_control/weights/best.pt` sha256 `1ef6ec2bbb67f4e3…`, split `5c8e38f1a18b4d95`, n=609
-- **a1_pred_ir**: weights `/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/a1_pred_ir/weights/best.pt` sha256 `4a84659e8db43505…`, split `5c8e38f1a18b4d95`, n=609
-- **a3_node_edge_ir**: weights `/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/a3_node_edge_ir/weights/best.pt` sha256 `fe676c755f7ed530…`, split `5c8e38f1a18b4d95`, n=609
-- **a5_fgw_ir**: weights `/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/a5_fgw_ir/weights/best.pt` sha256 `3405068e2c386cf3…`, split `5c8e38f1a18b4d95`, n=609
+- **a0_gt**: weights `<repo-root>/experiments/08_graph_kd/runs/a0_gt/weights/best.pt` sha256 `cf3236e20cbb92db…`, split `5c8e38f1a18b4d95`, n=609
+- **a2_ir_control**: weights `<repo-root>/experiments/08_graph_kd/runs/a2_ir_control/weights/best.pt` sha256 `1ef6ec2bbb67f4e3…`, split `5c8e38f1a18b4d95`, n=609
+- **a1_pred_ir**: weights `<repo-root>/experiments/08_graph_kd/runs/a1_pred_ir/weights/best.pt` sha256 `4a84659e8db43505…`, split `5c8e38f1a18b4d95`, n=609
+- **a3_node_edge_ir**: weights `<repo-root>/experiments/08_graph_kd/runs/a3_node_edge_ir/weights/best.pt` sha256 `fe676c755f7ed530…`, split `5c8e38f1a18b4d95`, n=609
+- **a5_fgw_ir**: weights `<repo-root>/experiments/08_graph_kd/runs/a5_fgw_ir/weights/best.pt` sha256 `3405068e2c386cf3…`, split `5c8e38f1a18b4d95`, n=609

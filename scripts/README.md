@@ -1,34 +1,19 @@
-# `scripts/` — release maintenance tools
+# `scripts/` — repository validation
 
-These are packaging/portability helpers, not experiment code. They are safe to
-run on a login node and do not start training.
-
-| Script | What it does |
-|---|---|
-| `rewrite_symlinks.py` | Converts absolute symlinks to relative ones using the old-root → new-root map. Already applied to this release; re-run only if you import more symlinked data. |
-| `relocate_paths.py` | Rewrites machine-specific absolute paths in text files (`.py`, `.sh`, `.sbatch`, `.yaml`, `.json`, `.md`, …). Use after moving the folder. |
-| `verify_release.py` | Static validation: expected dirs, symlink resolution, machine-specific paths, dataset YAML targets. No GPU, no network. |
-
-## After moving the release
-
-```bash
-python3 scripts/relocate_paths.py --from /old/path/to/release --to /new/path/to/release
-python3 scripts/verify_release.py
-```
-
-`relocate_paths.py` also upgrades the pre-2026-11-10 layout: it maps
-`/home2/home/preetham_g/Gate_IR/...` to the packaged layout, and replaces the
-old conda interpreter path with `python`.
-
-## Validation only
+`verify_release.py` is a static layout check: it verifies the expected directory
+structure, that symlinks resolve, and that dataset-YAML targets exist. It does
+no training, needs no GPU and does not access the network.
 
 ```bash
 python3 scripts/verify_release.py
 ```
 
-The script reports:
-- broken/absolute symlinks,
-- machine-specific paths in source/config,
-- dataset YAML entries whose targets are missing.
+It reports:
 
-Known, expected warnings are listed in `docs/KNOWN_ISSUES.md`.
+- broken or absolute symlinks,
+- dataset-YAML entries whose targets are missing,
+- experiment directories missing their expected files.
+
+known, expected warnings are documented in the experiment READMEs (for example,
+experiments whose intermediate `data/filtered/…` trees are regenerated at run
+time).

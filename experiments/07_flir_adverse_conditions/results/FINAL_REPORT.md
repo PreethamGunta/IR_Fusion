@@ -4,8 +4,8 @@ Generated 2026-11-12T00:19:15.245158+00:00.
 
 ## Protocol
 
-- Detector: YOLOv12s (`/home2/home/preetham_g/gate_ir_release/models/pretrained/yolo12s.pt`), 40 epochs max, patience 10, batch 16, imgsz 640, seed 0.
-- Baseline **CM**: trained on clear train **C_Tr** (/home2/home/preetham_g/gate_ir_release/data/flir_adas_v2/yolo/train_3a/images/train_clear → 9,051 images).
+- Detector: YOLOv12s (`<repo-root>/models/pretrained/yolo12s.pt`), 40 epochs max, patience 10, batch 16, imgsz 640, seed 0.
+- Baseline **CM**: trained on clear train **C_Tr** (<repo-root>/data/flir_adas_v2/yolo/train_3a/images/train_clear → 9,051 images).
 - Clear test **C_T**: the matched 3,749-frame VTT split.
 - Adverse test **A_T**: the same 3,749 frames transformed at **medium** severity.
 - Selection: relative mAP50-95 drop `(C_T − A_T) / C_T` > 5 %.

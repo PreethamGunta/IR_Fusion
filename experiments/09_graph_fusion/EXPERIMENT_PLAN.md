@@ -1,45 +1,27 @@
 # EXPERIMENT 09: GRAPH-BASED RGB-IR FUSION — METHOD + EXECUTION PLAN
-Extends the earlier "Direction 2" prompt, whose data-integrity list, residual
-gate and deliverables still apply where not superseded here.
+Companion design document to [README.md](README.md). It defines the method,
+the fusion ladder, the gates and the pre-registered decision thresholds.
 
 > **Active plan = the Minimal First Pass (section 5), single seed.** Phase 0
-> (section 3) is complete and its checks gate everything below.
-> **This file is a plan, not a status report:** live status (allocations,
-> running steps, paused 08 state, quota) is maintained in `README.md`
-> ("Current state") and `RESULTS.md`, never here.
+> (section 3) describes the completed data/protocol foundations.
 
-## 0. STANDING RULES
+## 0. SCOPE AND CONVENTIONS
 
-- **One environment: `gateir` only.** All 09 work uses
-  `/home2/home/preetham_g/.conda/envs/gateir/bin/python`. No separate envs are
-  created (the temporary `gf09`/`ivpaf`/`icaf` envs were deleted; recreating
-  any env needs explicit user authorisation). Tier A native reproductions stay
-  blocked on this policy.
-- **Never modify `experiments/08_graph_kd/`.** Copy (do not import) any 08
-  module needed into `09/src/` and record its SHA-256 in `PROVENANCE.md`.
-  08 is paused, not dead: its checkpoints stay untouched and it is resumable
-  (section 12).
-- **Shared Dataset Rule.** Large datasets live once under repo-root `data/`;
-  experiments reference them by relative paths derived from the repo root.
-  Experiment-local data only for derived labels/splits/warped images/caches.
-  No new per-experiment hardlink dataset trees.
-- **SLURM.** Allocation names are lowercase, unidentifiable acronyms
-  (e.g. `girkd`). Never cancel an allocation; stop work by cancelling **steps**
-  only, with explicit approval. Launch via `srun --jobid=<alloc> --overlap`
-  from the existing `srun_s` tmux session. Check `squeue` and GPU memory
-  before launching. Heavy work only inside an allocation.
-- Never overwrite checkpoints, datasets or results. Invalid results are
-  renamed `*_INVALID_<reason>`, never deleted (deletions only from the
-  user-approved list).
-- Tag every finding [VERIFIED] / [CODE-READ] / [REPORT-ONLY] / [INFERRED].
-  Never write "tested", "fixed" or "reproduced" unless [VERIFIED].
-- One architectural change per experiment. Same backbone, head, recipe, data
-  and seed; only the fusion module changes.
-- **The test split is locked.** Selection on VAL only; test numbers only via
-  `scripts/final_eval.py` with its LOCK mechanism (`results/LOCK_<exp>.json`,
-  refusal on second run without logged `--override`).
-- If something is blocked (weights, network, GPU), log the blocker and
-  continue with independent work.
+- **Datasets.** Large datasets live once under the repository-root `data/`;
+  this experiment keeps only derived labels, splits, warped images and caches.
+- **One change at a time.** Same backbone, head, recipe, data and seed; only the
+  fusion module changes between rungs.
+- **Checkpoint and result discipline.** Runs are resumable from `last.pt`;
+  invalid results are renamed `*_INVALID_<reason>`, never deleted silently.
+- **Evidence labels.** Findings are tagged [VERIFIED] / [CODE-READ] /
+  [REPORT-ONLY] / [INFERRED]; "tested/fixed/reproduced" is only used with
+  [VERIFIED].
+- **Locked test split.** All selection happens on validation; test numbers come
+  only from `scripts/final_eval.py` with its LOCK mechanism
+  (`results/LOCK_<exp>.json`, refusing a second run without a logged
+  `--override`).
+- **Compute.** Ladder rungs are screened on a ⅓-train subset; finalists rerun
+  on full data. GPU-heavy work runs as batch jobs on the cluster.
 
 ## 1. STRATEGY IN ONE PAGE
 
@@ -50,8 +32,8 @@ rather than just adding parameters?
 
 Three comparison tiers, reported separately (never mixed in one table):
 - **Tier A**, external as-is: official repos retrained under our protocol,
-  scored by OUR evaluator. *Blocked: no accessible weights + gateir-only
-  policy. Deferred, not part of the minimal pass.*
+  scored by OUR evaluator. *Not part of the minimal pass: no accessible weights are released
+  for either external method.*
 - **Tier B**, controlled module swap (the scientific core): one common
   detector (dual-stream YOLO12s); only the fusion module changes.
 - **Tier C**, final head-to-head (optional): drop our best module into
@@ -79,11 +61,11 @@ code into `src/`.
 
 Both repos stay pinned under `external/` (SHAs in `PROVENANCE.md`).
 
-## 3. PHASE 0 — EXECUTED (details in AUDIT_REPORT.md)
+## 3. PHASE 0 — DATA AND PROTOCOL FOUNDATIONS (details in README/RESULTS and audit JSONs)
 
 | Step | Outcome |
 |---|---|
-| 0.1 skeleton/envs | gateir-only per user instruction; temp envs deleted |
+| 0.1 skeleton | experiment layout, configs and provenance set up |
 | 0.2 DroneVehicle v2 | 17,962/1,469/8,980 pairs; IR labels `*labelr`, RGB `*label`; round-trip asserts pass; 28 missing official frames documented in `audit/dv_v2_audit.json`; thermal GT is primary |
 | 0.3 FLIR 3-class | person/car/bicycle; `warp` 3,752/365/1,013 and `drop` 1,387/223/1,013; paper 1,013-frame val list = locked TEST; 2 contiguous blocks = VAL; policy chosen later on val evidence |
 | 0.4 evaluator | `src/eval/coco_eval.py`, pycocotools-only; 6/6 unit tests PASS (`PYTHONPATH=src`) |
@@ -132,7 +114,7 @@ E31–E33 (operator swaps — only if E30/E35 show the graph idea works);
 E34, E36, E37 (refinements of E35); E38, E40, E41 (tuning sweeps — last,
 finalists only); E39 (only if the best graph model's output form is in
 question); E50 (speculative object-level OT graph); EXT-IVPAF / EXT-ICAF
-(blocked: no accessible weights + gateir-only); Phase 4 (defined only after
+(not included: no accessible weights); Phase 4 (defined only after
 Gate B).
 
 ### 5.3 Recipe (identical across all runs except the fusion module)
@@ -156,9 +138,9 @@ official DV val; loss/assigner unchanged from the 08 recipe; per-run
 
 | Batch of work | Est. GPU-h | Window |
 |---|---|---|
-| E00 + E01 (concurrent, full DV) → E02 → E03 | ~11–13 | allocation day 1 |
-| E10, E14, E21, E30, E35 (screening, two at a time); E22 if triggered | ~25–32 | allocation day 2 (±spill into day 3) |
-| Finalist reruns (full DV + FLIR, 3 seeds if compute allows) | remaining | allocation day 3 |
+| E00 + E01 (concurrent, full DV) → E02 → E03 | ~11–13 | GPU-day 1 |
+| E10, E14, E21, E30, E35 (screening, two at a time); E22 if triggered | ~25–32 | GPU-day 2 (± spill) |
+| Finalist reruns (full DV + FLIR, 3 seeds if compute allows) | remaining | GPU-day 3 |
 
 Total ≈ **40–45 GPU-h ≈ 2–3 × 24 h allocations**, vs several hundred for the
 full 26-rung × 3-seed matrix. GPU-heavy runs go at most two-at-a-time on one
@@ -272,22 +254,20 @@ split, seed, epochs, params, FLOPs, latency, AP50-95, AP50, AP75, per-class
 AP, val/test flag, lock id, decision (promote / no gain / invalid), notes,
 run dir. Documents updated continuously: README.md (state + next steps),
 this file (hypotheses, gates, pre-registered thresholds), RESULTS.md (tables,
-probes), AUDIT_REPORT.md (data, leakage, evaluator, verified bugs).
+probes), and the `audit/` JSONs (data, alignment, leakage, evaluator checks).
 Final answer must address: strongest baseline; best graph variant; whether we
 beat each baseline (per tier, CIs); which components matter (E22, E30 vs E20,
 E35 probes); credibility of gains; RGB incremental value; residual
 predictability; suitability as a Direction 3 teacher.
 
-## 12. EXPERIMENT 08 — DEFERRED, RESUMABLE
+## 12. RELATION TO EXPERIMENT 08 (DEFERRED)
 
-08 is paused by user decision (its arms distil into IR-only students from the
-fused early-fusion teacher or IR+RGB consensus — none builds a better fused
-model). Nothing under `experiments/08_graph_kd/` was modified or deleted; the
-orchestrator is resume-safe: rerunning
-`experiments/08_graph_kd/scripts/parallel_orchestrator.py` in a new srun step
-skips DONE arms, auto-resumes partial arms from `last.pt`, then runs the
-remaining evals. The live paused-state numbers (arms, epochs, best APs) are
-recorded in `README.md`/`RESULTS.md`, not here.
+Experiment 08 distils cross-modal teachers into compact IR-only students; it is
+documented separately in `experiments/08_graph_kd/`. Its runs are checkpointed
+and resumable (`scripts/parallel_orchestrator.py` skips completed arms and
+continues partial ones from `last.pt`). Experiment 09 is the active direction:
+it builds the fused detector that message-passing distillation (the long-term
+Direction 3 goal) would later need as a teacher.
 
 ## 13. SOURCES
 

@@ -3,17 +3,21 @@
 Training-only, cross-modal graph distillation into a compact **IR-only** YOLO
 student. RGB and fused teachers are never present at inference.
 
-This experiment implements the plan in
-[`scratch/Graph_Structured_KD.md`](../../scratch/Graph_Structured_KD.md)
-(Experiments A–F, all four matchers) on the **aligned FLIR pairs** supplied in
-`scratch/flir_aligned/`, plus the evaluation and provenance machinery needed to
-compare against a well-tuned conventional-KD baseline.
+**Status: stopped.** The runs are checkpointed and resumable; results below are
+the verified subset. The full DroneVehicle matrix and its test evaluation are
+incomplete (see *Results*).
+
+The experiment implements the plan in
+[`Graph_Structured_Knowledge_Distillation.md`](../../Graph_Structured_Knowledge_Distillation.md)
+(Experiments A–F, all four matchers) on aligned FLIR pairs and DroneVehicle,
+plus the evaluation and provenance machinery needed to compare against a
+well-tuned conventional-KD baseline.
 
 ## Headline protocol
 
 | | |
 |---|---|
-| Data | Zhang et al. aligned FLIR release (`scratch/flir_aligned/aligned.zip`), 640×512 RGB/IR pairs, 4 classes: person, bicycle, car, dog |
+| Data | Zhang et al. aligned FLIR release (`data/flir_aligned/`), 640×512 RGB/IR pairs, 4 classes: person, bicycle, car, dog |
 | Split | paper train/val split, val further split by frame id: **4,129 train / 404 val / 609 test** pairs, sequence-disjoint (train frames 2–8859, val 8864–9500, test 9501–10227) |
 | Teachers | YOLO12s **IR**, YOLO12s **RGB**, YOLO12s **early-fusion (6-channel RGB+IR)** |
 | Student | YOLO12n, IR only, 2.56 M parameters |
@@ -97,8 +101,8 @@ experiment-local.
 
 ## Commands
 
-All training must be executed as an `srun` step inside the live `salloc`
-allocation (see `rules.md`). From the experiment root:
+All training runs as a GPU job (one `srun` step per allocation). From the
+experiment root:
 
 ```bash
 # 1. data (once; ~1 minute)
@@ -127,21 +131,60 @@ start two tasks that race on the same run directory and corrupt checkpoints.
 
 ## Results
 
-Filled in `results/SUMMARY.md` after the runs.
+### FLIR aligned protocol — locked 609-frame test
 
-**Current execution split.** On FLIR the fused RGB-IR teacher failed the
-plan's go/no-go check (AP50-95 0.206 vs 0.417 for the IR teacher; AP75 only
-0.078), so the FLIR run is limited to the five core IR-teacher arms
-(A0, A2ir, A1ir, A3ir, A5ir). The full matrix, including the fused teacher, is
-run on DroneVehicle, whose RGB modality is strong; the DroneVehicle fused
-teacher uses paired hflip/vflip/rot90/scale/translate/photometric augmentation
-and is trained to convergence. Each individual evaluation is
-`results/<arm>_test.json` with AP/AP50/AP75/APs/APm/APl, per-class AP,
-ECE/Brier, parameters, latency, weights SHA-256 and split hash.
+AP is COCO mAP50-95; deltas are relative to the GT-only student `a0_gt`.
+Per-run evaluation JSONs are produced locally by the evaluation scripts and are
+not versioned; the tables below are the record. Invalid runs are excluded.
+
+| Arm | AP | AP50 | AP75 | ΔAP | ECE | Params |
+|---|---:|---:|---:|---:|---:|---:|
+| a0_gt (GT only) | 0.2518 | 0.4955 | 0.2206 | — | 0.1257 | 2.57 M |
+| a2_ir_control | 0.2498 | 0.4911 | 0.2190 | −0.0020 | 0.1004 | 2.57 M |
+| a1_pred_ir (conventional KD) | 0.2409 | 0.4821 | 0.1990 | −0.0110 | 0.1160 | 2.57 M |
+| **a3_node_edge_ir** | **0.2586** | **0.5085** | **0.2223** | **+0.0068** | 0.0995 | 2.57 M |
+| a5_fgw_ir | 0.2569 | 0.4990 | 0.2228 | +0.0051 | 0.1020 | 2.57 M |
+
+Best arm per class (`a3_node_edge_ir`): car 0.509, person 0.318, bicycle 0.203,
+dog 0.005. Single seed: the +0.68 pp gain of A3 over A0 is within seed noise and
+should be read as suggestive, not established.
+
+On FLIR the fused RGB-IR teacher failed the plan's go/no-go check (AP50-95 0.206
+vs 0.417 for the IR teacher; AP75 0.078), so the FLIR matrix was limited to the
+five IR-teacher arms above.
+
+### DroneVehicle protocol (validation only)
+
+The 6-channel early-fusion teacher underperforms both independent teachers; the
+student matrix is therefore a distillation baseline, not a fusion study.
+
+| Teacher (validation) | Best epoch | AP50-95 | AP50 |
+|---|---:|---:|---:|
+| IR-only | 54 | 0.5484 | 0.8000 |
+| RGB-only | 84 | 0.5882 | 0.8132 |
+| Fused (paired validator) | last | 0.4865 | 0.7134 |
+
+| Student arm (validation) | State | Epochs | Best val AP50-95 |
+|---|---|---:|---:|
+| A0 GT-only | complete | 58 | 0.4348 |
+| A1 prediction KD (fused teacher) | complete | 59 | 0.4407 |
+| A2 node KD (IR teacher) | complete | 54 | 0.4383 |
+| A2 node KD (fused teacher) | stopped | 55 | 0.4317 |
+| A3 node+edge (fused teacher) | stopped | 40 | 0.4414 |
+| B consensus (IR+RGB teachers) | stopped | 17 | 0.4194 |
+
+DroneVehicle **test** evaluation is not valid for this experiment: the only
+available test JSON (`results/dv_a0_gt_test_WRONG_GT.json`) used mis-specified
+IR labels and scores 0.0596; it must not be quoted. The remaining arms
+(A4–A7, C–F) were not run.
+
+Each evaluation records AP/AP50/AP75/APs/APm/APl, per-class AP, ECE/Brier,
+parameters, latency, weights SHA-256 and split hash; the JSON files are
+regenerated by the evaluation CLI and are not versioned.
 
 ## Caveats
 
-- Single seed for the main matrix; second seeds only if time remains.
+- Single seed for the main matrix; the reported deltas (ΔAP ≤ 0.011) are within seed noise unless a multi-seed rerun is done.
 - The aligned FLIR split is a **new protocol** (4 classes, 609-frame test), so
   its absolute numbers are not comparable to the 15-class 3,749-frame GATE-IR
   tables. Comparisons are internal to this experiment.
@@ -160,9 +203,8 @@ ECE/Brier, parameters, latency, weights SHA-256 and split hash.
   inputs remain deterministic; augmentation is only used while fitting the
   teacher.
 - DroneVehicle teachers are trained to convergence (100 epochs max, patience
-  30). The full DroneVehicle matrix (A0-A7, matchers, B/C/D/E/F) may span more
-  than one 24 h allocation; every run is resumable from `weights/last.pt` and
-  phases skip DONE arms.
+  30). The full DroneVehicle matrix (A0–A7, B/C/D/E/F) was not completed; every
+  run is resumable from `weights/last.pt` and phases skip completed arms.
 - KD is applied every 4th training batch (`kd_every=4`, FGW every 6th) and the
   loss is scaled by the same factor, so the average KD strength is unchanged
   while the matching cost is amortised. This was necessary to fit the full arm

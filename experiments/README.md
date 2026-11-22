@@ -1,36 +1,42 @@
 # `experiments/` — workstream index
 
-Each directory is a self-contained experiment/workstream: its own README, code,
-configs, run outputs, logs and result files. Nothing here is shared by copying;
-shared data lives in `../data/`.
+Nine self-contained experiment directories. Each holds its own code, configs,
+run directories and result files; shared datasets live once under `../data/`.
 
-| # | Directory | Status | Headline |
+| # | Directory | Status | Scope |
 |---|---|---|---|
-| 01 | `01_flir_weather_translation/` | complete for fog; rain/snow partial | FLIR weather translation + original YOLOv8s detectors |
-| 02 | `02_flir_gate_ir/` | CycleGAN complete; CycleDiff B1 complete, G1 at epoch 27/100 | B1 vs G1 100-epoch comparison |
-| 03 | `03_m3fd_weather/` | complete | M3FD methods 1/2/3 + YOLOv12s |
-| 04 | `04_uniri_gate/` | scripts + logs only | UNIRI-TID variant/gate builder |
-| 05 | `05_detector_bench/` | complete (RT-DETR-l invalid) | UNIRI-TID detector bench |
-| 06 | `06_gate_ir_scaffolding/` | scaffolding only | early GATE-IR package |
-| 07 | `07_flir_adverse_conditions/` | complete; 5/8 conditions retrained | eight FLIR thermal conditions, screen + retrain protocol |
-| 08 | `08_graph_kd/` | running / in progress | graph-structured cross-modal KD into an IR-only student (aligned FLIR pairs, all matchers) |
+| 01 | [`01_flir_weather_translation/`](01_flir_weather_translation/README.md) | fog complete; rain/snow partial | FLIR weather synthesis (CycleGAN, CycleDiff, classical, depth) and the first single-generator YOLOv8s detectors |
+| 02 | [`02_flir_gate_ir/`](02_flir_gate_ir/README.md) | CycleGAN complete; CycleDiff filtered arm incomplete | GATE-IR: gate + filter comparison against the unfiltered baseline |
+| 03 | [`03_m3fd_weather/`](03_m3fd_weather/README.md) | complete | Synthetic weather on paired M3FD IR/RGB; learnability study |
+| 04 | [`04_uniri_gate/`](04_uniri_gate/README.md) | scripts + logs only | UNIRI-TID gate/preprocessing variant builder |
+| 05 | [`05_detector_bench/`](05_detector_bench/README.md) | complete (RT-DETR-l invalid) | Detector comparison on UNIRI-TID clear/fog/rain |
+| 07 | [`07_flir_adverse_conditions/`](07_flir_adverse_conditions/README.md) | complete | Eight-condition FLIR screen and selective retraining |
+| 08 | [`08_graph_kd/`](08_graph_kd/README.md) | **stopped** (checkpointed, resumable) | Graph-structured cross-modal distillation into an IR-only student |
+| 09 | [`09_graph_fusion/`](09_graph_fusion/README.md) | **active** | Controlled RGB-IR fusion ladder (references → simple → attention → graph) |
+
+The early GATE-IR scaffolding prototype (experiment 06) is not part of this
+repository; the original idea and implementation are at
+<https://github.com/zer0-data/GATE-IR>.
 
 ## Conventions
 
-- `src/` or top-level `*.py` — code for the experiment.
-- `scripts/` — shell entry points / SLURM wrappers.
-- `configs/` — generated or hand-written dataset YAMLs and configs.
-- `runs/` — Ultralytics run directories; each contains `weights/`,
-  `results.csv`, `args.yaml`, plots. These are the training artefacts and are
-  deliberately kept with the experiment.
-- `results/` — evaluation JSONs and Markdown summaries.
-- `logs/` — training / evaluation / orchestration logs.
-- `data/` (where present) — experiment-local intermediate data (filtered images,
-  symlink farms). Regenerable.
+- `src/` or top-level `*.py` — experiment code.
+- `scripts/` — shell entry points and cluster wrappers.
+- `configs/` — generated or hand-written dataset YAMLs and method configs.
+- `runs/` — Ultralytics run directories: `args.yaml`, `results.csv`,
+  `weights/{best,last}.pt`, training plots. These are the training artefacts
+  and stay with the experiment.
+- `results/` — evaluation JSONs (and small audit/summary files).
+- `logs/` — training, evaluation and orchestration logs.
+- `data/` (where present) — experiment-local intermediates (filtered images,
+  symlink farms); regenerable.
+
+`runs/<run>/results.csv` is the **training-time validation** curve used for
+checkpoint selection. Reported test numbers are the JSON files in `results/`.
 
 ## Result JSON shape
 
-Workstream 02 and 03 write the same provenance-rich schema:
+Experiments 02 and 03 write a provenance-rich schema:
 
 ```json
 {
@@ -41,4 +47,6 @@ Workstream 02 and 03 write the same provenance-rich schema:
 }
 ```
 
-Workstream 05 uses `overall` / `per_condition` blocks with COCO-style APs.
+Experiment 05 uses `overall` / `per_condition` blocks with COCO-style APs.
+Experiment 09 uses COCO prediction/GT JSONs scored by its own evaluator, with
+`LOCK_<exp>.json` files recording the pre-registered test choices.

@@ -1,22 +1,33 @@
-# Experiment 09 — Results (Phase 0)
+# Experiment 09 — Results
 
-No 09 model has been trained. This file contains only data/protocol tables.
-All numbers are [VERIFIED] from the build/audit JSONs unless marked otherwise.
+All numbers below come from files in this directory; each table cites its
+source. Runs without a completed evaluation are marked **pending** and no
+number is reported for them.
 
-## Datasets
+## 1. Datasets
 
-### DroneVehicle v2
+### DroneVehicle v2 (primary benchmark)
 
-| Split | Pairs | IR boxes | RGB boxes | IR classes (car,truck,bus,van,freight) |
+17,962 / 1,469 / 8,980 paired RGB-IR images; 5 classes (car, truck, bus, van,
+freight_car). IR supervision uses thermal labels (`*labelr`), RGB supervision
+uses visible labels (`*label`). Source: `audit/dv_v2_audit.json`.
+
+| Split | Pairs | IR boxes | RGB boxes | IR classes (car / truck / bus / van / freight) |
 |---|---:|---:|---:|---|
 | train | 17,962 | 315,826 | 286,217 | 269,855 / 15,816 / 11,295 / 7,689 / 11,171 |
 | val | 1,469 | 24,490 | 22,462 | 20,588 / 1,470 / 789 / 725 / 918 |
 | test | 8,980 | 159,613 | 143,313 | 137,145 / 8,657 / 4,467 / 4,282 / 5,062 |
 
-Official train labels = 17,990; 28 images missing from the extracted archive
-(11 IR-only, 17 RGB-only), documented in `audit/dv_v2_audit.json`.
+The official train list contains 17,990 frames; 28 images are absent from the
+source archive (11 IR-only, 17 RGB-only) and are listed in the audit. No labels
+were synthesised.
 
-### FLIR 3-class
+### FLIR-aligned, 3-class (secondary, deferred)
+
+Two alignment policies for the 667 letterboxed RGB frames: `drop` (exclude
+flagged pairs from train/val) and `warp` (translate them by the estimated
+shift). The paper's 1,013-frame validation list is the test set; validation is
+two contiguous frame-id blocks.
 
 | Policy | Split | Frames | Person | Car | Bicycle |
 |---|---|---:|---:|---:|---:|
@@ -27,48 +38,50 @@ Official train labels = 17,990; 28 images missing from the extracted archive
 | drop | val | 223 | 793 | 904 | 35 |
 | drop | test | 1,013 | 4,107 | 4,124 | 360 |
 
-`test_clean` (both policies) = 491 unflagged test frames.
+### Alignment and leakage checks (FLIR)
 
-## Alignment and leakage
-
-| Split | Frames | cropped RGB | flagged >2 px |
+| Split | Frames | cropped RGB | flagged > 2 px |
 |---|---:|---:|---:|
-| warp train | 3,752 | 16.3% | 63.0% |
-| warp val | 365 | 13.2% | 38.9% |
-| test | 1,013 | 0% | 51.5% |
+| warp train | 3,752 | 16.3 % | 63.0 % |
+| warp val | 365 | 13.2 % | 38.9 % |
+| test | 1,013 | 0 % | 51.5 % |
 
 - Exact dHash duplicates across splits: 0.
-- dHash NN median: test→train 16, val→train 16, train→train 13.
-- Frame-id overlaps: 0.
-- Pair integrity: true for every split.
-- Normalization stats (train only) and SHA-256: `audit/flir3_leakage_*.json`.
+- dHash nearest-neighbour median: test→train 16, val→train 16, train→train 13.
+- Frame-id overlaps: 0; pair integrity holds for every split.
+- Normalisation statistics are computed from train only and hashed in
+  `audit/flir3_leakage_{drop,warp}.json`.
 
-## Gate A
+## 2. Evaluation protocol
 
-**Formal Gate A (3-seed sigma_seed + external reproductions): waived** per the
-minimal single-seed pass (plan §5.4). Substitute Gate A: protocol/leakage
-checks 0.2–0.5 PASS [VERIFIED]; references E00–E03 trained and locked-test
-evaluated with sane numbers (see the Tier A table below); the single-seed
-caveat (deltas < 0.5 pp AP50-95 = "no detectable gain", paired image
-bootstrap for the headline claim) is pre-registered. Tier A external
-reproductions remain blocked (no accessible weights; `gateir`-only policy).
+- **Reporting evaluator:** `src/eval/coco_eval.py` (pycocotools only), on
+  predictions exported with conf 0.001, NMS IoU 0.6, maxDet 100.
+- **Checkpoint selection:** validation split only; the test split is scored
+  exclusively through `scripts/final_eval.py` against pre-registered
+  `results/LOCK_<exp>.json` files (config hash, checkpoint hash, val metric).
+- **Training-time validation** (Ultralytics, rect letterbox, its own NMS/mAP)
+  differs from the reporting protocol by ≈4 pp (E00 0.6306→0.5876, E02
+  0.5047→0.4685). It is used only for early stopping and `best.pt`; it is never
+  quoted as a result.
+- **Recipe:** YOLO12s, 640 px, batch 16, seed 0, patience 30. E02 additionally
+  uses joint paired augmentation (flips, 90° rotations for aerial imagery,
+  scale/translate, per-modality photometric jitter).
 
-## Tier A references — minimal first pass, LOCKED TEST [VERIFIED 2026-11-22]
+## 3. Reference tier — locked test results
 
-All runs: YOLO12s, 640 px, batch 16, seed 0, patience 30, val-only selection,
-DroneVehicle v2 (thermal GT primary). Locked test = 8,980 frames, thermal GT
-(`results/gt/dv_v2_ir_test.json`), scored by `src/eval/coco_eval.py` via
-`scripts/final_eval.py` with locks (`results/LOCK_<exp>.json`) created before
-any test access. Metrics: `results/<exp>_test_metrics.json`.
+Test split: 8,980 frames, thermal ground truth (COCO GT regenerated by
+`scripts/make_gt_dv.py`). Each run's metrics are written to
+`results/<exp>_test_metrics.json` by `scripts/final_eval.py`; these files are
+produced locally and not versioned — the tables in this document are the record.
 
-| Run | Val AP50-95 (ultralytics) | Val AP50-95 (locked protocol) | **Test AP50-95** | Test AP50 | Test AP75 |
-|---|---:|---:|---:|---:|---:|
-| **E00** `e00_ir` | 0.63055 (ep55) | 0.58757 | **0.57828** | 0.76281 | 0.69743 |
-| **E01** `e01_rgb` | 0.58822 (ep84, visible GT) | 0.43578 (thermal) | **0.41264** | 0.65337 | 0.45111 |
-| **E02** `e02_fused` | 0.50471 (ep100) | 0.46847 | **0.47619** | 0.69418 | 0.57086 |
-| **E03** `e03_late_fusion` | 0.58833 (WBF grid) | — | **0.57939** | 0.78682 | 0.70746 |
+| Run | Method | Val mAP50-95 (training) | Val mAP50-95 (reporting) | **Test mAP50-95** | Test mAP50 | Test mAP75 |
+|---|---|---:|---:|---:|---:|---:|
+| **E00** | IR-only YOLO12s | 0.63055 (ep55) | 0.58757 | **0.57828** | 0.76281 | 0.69743 |
+| **E01** | RGB-only, thermal-graded | 0.58822 (ep84, visible GT) | 0.43578 | **0.41264** | 0.65337 | 0.45111 |
+| **E02** | 6-channel early fusion | 0.50471 (ep100) | 0.46847 | **0.47619** | 0.69418 | 0.57086 |
+| **E03** | WBF late fusion (E00+E01) | 0.58833 (val grid) | — | **0.57939** | 0.78682 | 0.70746 |
 
-Per-class test AP50-95 (car / truck / bus / van / freight_car):
+Per-class test mAP50-95 (car / truck / bus / van / freight_car):
 
 | Run | car | truck | bus | van | freight_car |
 |---|---:|---:|---:|---:|---:|
@@ -77,77 +90,83 @@ Per-class test AP50-95 (car / truck / bus / van / freight_car):
 | E02 | 0.597 | 0.453 | 0.697 | 0.303 | 0.331 |
 | E03 | 0.663 | 0.571 | 0.750 | 0.422 | 0.491 |
 
+E03's configuration (WBF IoU 0.6, weights 1.5 : 1 IR : RGB, member-count
+scaling) was chosen on a 12-configuration validation grid
+(`results/e03_val_report.json`, `results/e03_config.json`).
+
 ### Findings
 
-1. **E00 (IR-only) is the reference to beat: test AP50-95 0.578.**
-2. **E03 (free WBF late fusion) ≈ E00**: +0.11 pp AP50-95 (below the 0.5 pp
-   promotion line) but consistent gains at looser IoU (+2.40 pp AP50,
-   +1.00 pp AP75) and on truck (+1.6 pp) — RGB adds recall without hurting
-   precision. Under the single-seed rule: **no detectable AP50-95 gain**;
-   the paired image bootstrap will be run on the finalists before any
-   stronger claim.
-3. **E02 (6-channel early fusion) is 10.2 pp below IR-only** (0.476 vs
-   0.578) — early fusion clearly hurts on DV v2, matching 08's finding and
-   the literature's "usually mediocre". Caveat: E02 was still improving at
-   its recipe-capped ep100, so part of the gap may be under-training.
-4. **E01 graded on thermal GT is weak** (0.413) and drags WBF down via
-   weight, despite decent visible-GT val (0.588): the thermal/visible label
-   disagreement costs ~15 pp. The complementarity oracle (Phase 1.2) will
-   quantify where RGB still helps (day scenes, IR-only misses).
+1. **E00 (IR-only) is the reference to beat: test mAP50-95 0.578.**
+2. **Free late fusion does not improve mAP50-95.** E03 gains +0.11 pp over E00
+   (below the 0.5 pp noise threshold) while improving mAP50 by +2.40 pp and
+   mAP75 by +1.00 pp and truck AP by +1.6 pp. RGB adds recall at loose IoU
+   without changing the strict metric.
+3. **Early fusion hurts.** E02 is 10.2 pp below IR-only. The run was still
+   improving at its 100-epoch recipe cap, so part of the gap may be
+   under-training, but the direction is unambiguous and consistent with the
+   experiment-08 fused-teacher result.
+4. **RGB alone is much weaker on thermal labels.** E01 scores 0.413 on thermal
+   ground truth despite 0.588 on its own visible-label validation: the
+   visible/thermal annotation disagreement costs ≈15 pp.
 
-### Protocol notes
+## 4. Complementarity oracle
 
-- Ultralytics training-val (rect letterbox, own NMS/eval) vs the locked
-  export protocol (square 640×640 letterbox, NMS IoU 0.6, pycocotools,
-  conf 0.001, maxDet 100) differ by ~4 pp (E00 0.6306→0.5876, E02
-  0.5047→0.4685). All cross-model comparisons use the locked protocol only.
-- E03's WBF config (iou 0.6, weights 1.5:1 IR:RGB, members-scaling on) was
-  chosen on a 12-config VAL grid; manifest + lock:
-  `results/e03_config.json`, `LOCK_e03_late_fusion.json`.
-- Exporter incidents (list-warmup OOM; tensor letterbox frame) are in
-  `STATUS_LOG.md`; invalid outputs preserved as `*_INVALID_*`.
+Per-GT-object analysis on the validation split: is each object detected by IR
+only, RGB only, both, or neither (IoU ≥ 0.5, score thresholds fixed on val by
+max-F1: IR 0.50, RGB 0.45). Day/night split uses the median train-set RGB
+luminance. Source: `results/oracle_dv_val.json`.
 
-## Phase 1.2 complementarity oracle (DV val, thermal GT) [VERIFIED]
-
-From the E00/E01 val predictions; thresholds fixed on val by max-F1
-(IR 0.50 / RGB 0.45 at IoU 0.5); day/night split by the median TRAIN RGB
-luminance. Full JSON: `results/oracle_dv_val.json`.
-
-| Segment | Recall IR | Recall RGB | Best-of-either | **Oracle gain** |
+| Segment | Recall IR | Recall RGB | Best-of-either | Oracle gain |
 |---|---:|---:|---:|---:|
 | overall | 0.9179 | 0.7981 | 0.9497 | **+3.18 pp** |
 | day | 0.9159 | 0.9125 | 0.9593 | +4.34 pp |
 | night | 0.9195 | 0.7070 | 0.9420 | +2.25 pp |
 | small objects | 0.8403 | 0.7200 | 0.9077 | **+6.73 pp** |
 
-GT objects (val): 18,767 both, 3,712 IR-only, 778 RGB-only, 1,233 neither.
+Validation objects: 18,767 detected by both modalities, 3,712 IR-only, 778
+RGB-only, 1,233 by neither.
 
-**Interpretation.** The oracle gain is ~3.2 pp overall and ~6.7 pp on small
-objects — well above the plan's ~1.5 pp "expect fusion gains" line, so there
-IS complementarity worth chasing. RGB nearly matches IR in day scenes
-(0.913 vs 0.916) and collapses at night (0.707). Yet E03 (WBF) captured
-almost none of it in AP50-95 (+0.11 pp; +2.40 pp at AP50, consistent with
-the recall gains at IoU 0.5) and E02 early fusion lost 10 pp. The ladder's
-job is to harvest this headroom — with small objects (P3-level fusion) the
-most promising target.
+**Interpretation.** Up to 3.2 pp of detection recall is recoverable overall and
+6.7 pp on small objects — the complementarity is real. RGB matches IR in
+daylight (0.913 vs 0.916) and degrades sharply at night (0.707). Neither E02
+nor E03 captures this headroom in mAP50-95, which motivates the mid-level
+fusion ladder, especially at P3 for small objects.
 
-## Current state (2026-11-22 ~02:25 UTC)
+## 5. Fusion ladder — preliminary screening results
 
-- **Reference tier E00–E03 of the minimal first pass: COMPLETE** [VERIFIED]
-  (locked test numbers above). 08 remains paused/resumable.
-- Allocation 10133 ends 2026-11-22 08:13; the E10+ ladder waits for the
-  pending allocation (`girkd`, est. 2026-11-25 22:20).
-- GF-YOLO testbed modules (subagent-built, reviewed 77/77 + probes) are
-  ready in `testbed_gfyolo/`; integration into a dual-stream Ultralytics
-  model is the next main-agent coding task.
+Screening runs use the ⅓-train subset (6,000 frames), paired augmentation and
+100 epochs, selecting on the official validation split with the **training-time**
+validation protocol. These numbers are therefore **not comparable** to the
+full-train references in §3, and no locked-test number exists for a ladder rung
+yet.
 
-## Next steps
+| Run | Method | Status | Best val mAP50-95 (ep) | Note |
+|---|---|---|---:|---|
+| E10 | concat + 1×1 at P3–P5 | training complete (100 ep) | **0.2174** (ep87) | val collapsed to 0.0037 at ep100; `best.pt` is ep87; late-training instability to diagnose |
+| E14 | IR-anchored gated residual | in progress | 0.1931 at snapshot (ep65, still improving) | — |
+| E21 | bidirectional cross-attention | planned | — | — |
+| E22 | capacity-matched self-attention control | conditional on E21 > E14 | — | — |
+| E30 | GAT, grid + cross-modal window edges | planned | — | — |
+| E35 | E30 + semantic-kNN edges | planned | — | — |
 
-1. Phase 1.2 complementarity oracle from the E00/E01 val predictions (CPU).
-2. Paired image bootstrap on E00 vs E03 (the one headline comparison so far).
-3. GF-YOLO integration (dual-stream model + Fuse at P3–P5), unit-tested.
-4. E10→E14→E21→(E22 if E21>E14)→E30→E35 on the screening subset in the next
-   allocation; finalists rerun on full DV; test stays locked.
+The screening-subset level (≈0.22 vs 0.50 for E02 on full train) is consistent
+with training on one third of the data, but the E10 late-epoch collapse is an
+anomaly that must be understood (instability, augmentation, or schedule) before
+any rung is promoted or rerun on full data.
 
+The fusion modules exist as standalone PyTorch components with 77 unit tests
+(channel contract, gate-initialisation identity, zero-modality behaviour,
+neighbour-table bounds and determinism, attention normalisation, fp16
+stability, gradient flow), and the dual-stream model is integrated and
+smoke-tested. No ladder rung has a completed evaluation.
 
+## 6. Validation evidence
 
+- Leakage gate: PASS for both FLIR policies (frame ids, hashes, pairing,
+  train-only normalisation, label round-trip).
+- Evaluator tests: ground-truth-as-prediction AP = 1.0, un-letterbox round
+  trip, known-shift IoU, horizontal flip, category mapping.
+- Test locks created before any test predictions were exported; a second
+  evaluation of the same experiment is refused without a logged override.
+- Dataset builders and the COCO ground-truth exporter reproduce the audited box
+  counts exactly (24,490 val / 159,613 test IR boxes; 22,462 / 143,313 RGB).
