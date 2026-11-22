@@ -1,0 +1,31 @@
+{
+ "AP": 0.5210194242184536,
+ "AP50": 0.7532218515091111,
+ "AP75": 0.6101078104781414,
+ "APs": 0.23216666060145022,
+ "APm": 0.5219236102050728,
+ "APl": 0.6555664532615081,
+ "per_class_AP": {
+  "car": 0.600342214858045,
+  "truck": 0.4602170522588427,
+  "bus": 0.7368876531629288,
+  "van": 0.3989503615869781,
+  "freight_car": 0.4086998392254728
+ },
+ "ECE": 0.12011699891067404,
+ "Brier": 0.11688351967324502,
+ "n": 33705,
+ "params": 9255071,
+ "latency_ms": 117.24196870811284,
+ "fps": 8.529368885723962,
+ "name": "audit_dv_ir_teacher_labelrval",
+ "weights": "/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/dv_ir_teacher/weights/best.pt",
+ "weights_sha256": "2797cd23cba0fbfa1f6296eecc4d21905df0184fa800e5a7858e3cf02cd5c42f",
+ "data": "audit/dv_ir_labelr_val.yaml",
+ "split": "val",
+ "n_images": 1469,
+ "n_annotations": 22462,
+ "split_hash": "2aca8a565f2dd0df",
+ "paired": false,
+ "imgsz": 640
+}

@@ -1,0 +1,35 @@
+{
+ "counts": {
+  "train": 4129,
+  "val": 404,
+  "test": 609,
+  "rgb_cropped": 667
+ },
+ "classes": {
+  "train": {
+   "car": 20608,
+   "person": 8987,
+   "bicycle": 2566,
+   "dog": 95
+  },
+  "val": {
+   "car": 1381,
+   "person": 2138,
+   "bicycle": 127
+  },
+  "test": {
+   "car": 2743,
+   "person": 1969,
+   "bicycle": 233,
+   "dog": 13
+  }
+ },
+ "alignment": {
+  "available": true,
+  "n_sampled": 300,
+  "median_abs_dx": 2.0,
+  "median_abs_dy": 2.0,
+  "frac_shift_gt2px": 0.46,
+  "mean_edge_overlap": 4252.223333333333
+ }
+}

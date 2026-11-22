@@ -1,0 +1,129 @@
+# 03 — M3FD synthetic weather
+
+## Overview
+
+M3FD is a paired RGB/IR multi-spectral detection dataset. This workstream uses
+it to test whether synthetic adverse weather (fog, rain, snow) can be generated
+well enough that a detector trained on it closes the weather gap — the same
+question as workstream 01, but on a different dataset and with a cleaner split.
+
+Three generation methods were compared:
+
+| Method | Idea | Cost |
+|---|---|---|
+| M1 classical | uniform veil / rain streaks / snow particles | minutes |
+| M2 depth | Koschmieder fog with a depth-derived transmission map | ~1–2 h |
+| M3 CycleGAN | unpaired IR translation using DSERT-RoLL weather domains | ~8–20 h |
+
+Protocols: **A** = train on clear, test on synthetic weather; **B** = train on
+clear + synthetic weather, test on synthetic weather. Protocol B is the one
+that matters.
+
+## Directory contents
+
+```
+03_m3fd_weather/
+├── README.md
+├── download.py                 M3FD download from Hugging Face
+├── resplit_m3fd.py             chunk-disjoint temporal split
+├── make_3b_dataset.py          build Protocol-3B train sets
+├── make_debug_subset.py        tiny debug split
+├── severity.py                 fog/rain severity definitions
+├── provenance.py               split hashes + weights fingerprints
+├── train_m3fd.py               YOLO training (YOLOv12s), resumable
+├── eval_m3fd.py                evaluation -> JSON
+├── method1_classical/          generate_weather_splits.py
+├── method2_depth/              apply_weather_depth.py
+├── method3_cyclegan/           train/translate CycleGAN + 3B datasets
+├── runs/                       Ultralytics runs (weights, results.csv, args.yaml)
+├── results/                    five result JSONs (clear, fog, rain, 3B)
+├── figures/                    qualitative sample grids (93 MB)
+├── logs/                       training/eval logs
+├── scripts/                    run_all_methods.sh, run_remaining_stages.sh, ...
+├── archive/
+│   ├── _old/                   pre-audit runs, superseded scripts, contaminated
+│   │                           random-split results (recovered from worktree)
+│   └── worktree_recover-session-12/  alternative versions of 14 code files
+└── methods_report.tex          write-up source
+```
+
+## Data requirements
+
+All M3FD data lives under `data/m3fd/`:
+
+```
+data/m3fd/
+├── M3FD/                 raw IR/RGB images + annotations
+├── split/IR/             chunk-disjoint train/val/test + labels
+├── synthetic/            method-1 weather
+├── synthetic_depth/      method-2 weather
+└── 3b_fog_heavy/         Protocol-3B YAMLs/data
+
+DSERT-RoLL target domains are in `data/dsert_roll/` (Fog, Heavy_Rain,
+Light_Rain, Heavy_Snow, Light_Snow, plus processed train/test splits; 24 GB).
+```
+
+The generated dataset YAMLs in `data/m3fd/**/*.yaml` reference this checkout by
+absolute path; run `python3 scripts/relocate_paths.py` after moving the release.
+
+## Execution
+
+From this directory, with `gateir` active:
+
+```bash
+# full pipeline (split -> CycleGAN -> clear baseline -> methods 1/2/3)
+bash scripts/run_all_methods.sh
+
+# or individually
+python resplit_m3fd.py
+python make_3b_dataset.py --help
+python train_m3fd.py --name v12s_m3fd_clear --data ../data/m3fd/split/IR/m3fd_clear.yaml --epochs 100
+python eval_m3fd.py --weights runs/v12s_m3fd_clear/weights/best.pt \
+                    --data ../data/m3fd/split/IR/m3fd_clear.yaml \
+                    --name v12s_m3fd_clear --split test
+```
+
+`run_all_methods.sh` is stage-marked and requeue-safe: each stage records the
+split hash, and finished stages are skipped on requeue. It runs from the release
+root (`cd "$REPO"`).
+
+## Results
+
+Clean split hash **`effb9b3090ad2fcb`**. Clear baseline: **mAP50-95 0.148,
+mAP50 0.268**.
+
+| Method | Protocol | Condition | mAP50 | mAP50-95 | Gap | Verdict |
+|---|---|---|---|---:|---:|---|
+| M1 classical | A | fog_light | 0.268 | 0.148 | 0.001 | FAIL |
+| M1 classical | A | fog_medium | 0.243 | 0.135 | 0.013 | FAIL |
+| M1 classical | A | fog_heavy | 0.206 | 0.117 | 0.032 | FAIL |
+| M1 classical | A | rain_light | 0.261 | 0.144 | 0.005 | FAIL |
+| M1 classical | A | rain_medium | 0.189 | 0.094 | 0.054 | WEAK |
+| M1 classical | A | rain_heavy | 0.079 | 0.041 | 0.108 | WEAK |
+| M2 depth | A | fog_medium | 0.199 | 0.114 | 0.035 | FAIL |
+| M2 depth | A | fog_heavy | 0.097 | 0.072 | 0.076 | WEAK |
+| M2 depth | A | rain_medium | 0.094 | 0.054 | 0.054 | WEAK |
+| M2 depth | A | rain_heavy | 0.011 | 0.011 | 0.137 | WEAK |
+| M2 depth | B | clear test | 0.244 | 0.141 | — | ref |
+| M2 depth | B | fog_heavy | 0.237 | 0.140 | −0.001 | FAIL |
+| M3 CycleGAN | A | fog | 0.075 | 0.048 | 0.101 | WEAK |
+| M3 CycleGAN | A | rain | 0.185 | 0.105 | 0.044 | FAIL |
+| M3 CycleGAN | B | clear test | 0.260 | 0.147 | — | ref |
+| M3 CycleGAN | B | fog | 0.193 | 0.098 | 0.049 | WEAK |
+| M3 CycleGAN | B | rain | 0.197 | 0.104 | 0.011 | FAIL |
+
+**No method passes the 0.10 Protocol-B gap target.** Deterministic fog (M2) is
+fully learnable (A-gap 0.076 → B-gap −0.001). CycleGAN fog has the largest
+A-gap but collapses to 0.049 under Protocol B. Method-2 rain IR is byte-identical
+to Method-1 rain IR and must not be reported as a separate method.
+
+Per-run provenance (metrics, weight sha, split hash) is in `results/*.json`;
+qualitative grids are in `figures/`.
+
+## Reproducibility notes
+
+- Recipe: YOLOv12s, 100 epochs, AdamW lr0=1e-3, cosine, `patience=25`,
+  `close_mosaic=10`, seed 0. Early stops observed at epochs 46–53.
+- The pipeline is stage-marked; changing the split invalidates every stage by
+  design.
+- RGB generators exist but have no effect on IR detection metrics.

@@ -1,0 +1,46 @@
+{
+  "rows": [
+    {
+      "filter": "gamma",
+      "clear_mAP50_95": 0.15883,
+      "fog_mAP50_95": 0.13694,
+      "fog_mAP50": 0.26383,
+      "gated_fog_mAP50_95": null,
+      "oracle_fog_mAP50_95": null
+    },
+    {
+      "filter": "clahe",
+      "clear_mAP50_95": 0.16357,
+      "fog_mAP50_95": 0.13352,
+      "fog_mAP50": 0.25075,
+      "gated_fog_mAP50_95": null,
+      "oracle_fog_mAP50_95": null
+    },
+    {
+      "filter": "dcp",
+      "clear_mAP50_95": 0.16505,
+      "fog_mAP50_95": 0.1394,
+      "fog_mAP50": 0.2689,
+      "gated_fog_mAP50_95": null,
+      "oracle_fog_mAP50_95": null
+    },
+    {
+      "filter": "unet",
+      "clear_mAP50_95": 0.16757,
+      "fog_mAP50_95": 0.15241,
+      "fog_mAP50": 0.28541,
+      "gated_fog_mAP50_95": null,
+      "oracle_fog_mAP50_95": null
+    },
+    {
+      "filter": "gamma_clahe",
+      "clear_mAP50_95": 0.16104,
+      "fog_mAP50_95": 0.13838,
+      "fog_mAP50": 0.26781,
+      "gated_fog_mAP50_95": null,
+      "oracle_fog_mAP50_95": null
+    }
+  ],
+  "best_filter": "unet",
+  "best_fog_mAP50_95": 0.15241
+}

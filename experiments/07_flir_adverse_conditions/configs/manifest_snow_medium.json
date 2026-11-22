@@ -1,0 +1,16 @@
+{
+  "condition": "snow",
+  "severity": "medium",
+  "generated_test": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/data/generated/snow/medium/test/images",
+  "generated_train": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/data/generated/snow/medium/train/images",
+  "clear_test": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/data/clear_test/images/test",
+  "yaml": [
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b0_snow_medium_train.yaml",
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b1_snow_medium_train.yaml",
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b2_snow_medium_train.yaml",
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b1_snow_medium_eval_clear.yaml",
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b1_snow_medium_eval_snow.yaml",
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b2_snow_medium_eval_clear.yaml",
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b2_snow_medium_eval_snow.yaml"
+  ]
+}

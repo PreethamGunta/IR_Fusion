@@ -1,0 +1,19 @@
+{
+  "name": "fog_light",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/03_m3fd_weather/runs/v12s_m3fd_clear/weights/best.pt",
+  "weights_sha256": "370d94a3a0c0fd96",
+  "data": "/home2/home/preetham_g/gate_ir_release/data/m3fd/synthetic/fog_light/m3fd_fog_light.yaml",
+  "split": "test",
+  "split_hash": "effb9b3090ad2fcb",
+  "n_images": 600,
+  "imgsz": 640,
+  "mAP50_95": 0.14781,
+  "mAP50": 0.26792,
+  "precision": 0.50518,
+  "recall": 0.26629,
+  "git_commit": "cdc6109",
+  "git_dirty": true,
+  "git_diff_hash": "ca6a86d21c725e85",
+  "slurm_job_id": "8756",
+  "hostname": "ub"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "gated_oracle_clahe",
+  "condition": "cyclegan",
+  "filter": "clahe",
+  "gate": "oracle",
+  "n_clear": 3749,
+  "n_fog": 3749,
+  "clear_routed_to_filter": 0,
+  "fog_routed_to_clear": 0,
+  "clear_false_positive_rate": 0.0,
+  "fog_false_negative_rate": 0.0
+}

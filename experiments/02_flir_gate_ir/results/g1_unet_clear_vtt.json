@@ -1,0 +1,18 @@
+{
+  "name": "g1_unet_clear_vtt",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/02_flir_gate_ir/runs/g1_unet_yolov8s_60/weights/best.pt",
+  "weights_sha256": "501fb398eaca139e",
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/02_flir_gate_ir/configs/g1_unet_direct_eval_clear.yaml",
+  "split": "test",
+  "n_images": 3749,
+  "imgsz": 640,
+  "mAP50_95": 0.16757,
+  "mAP50": 0.30993,
+  "precision": 0.42674,
+  "recall": 0.32266,
+  "git_commit": "6a5f15b",
+  "slurm_job_id": "9639",
+  "hostname": "ub",
+  "platform": "Linux-5.15.0-198-generic-x86_64-with-glibc2.35",
+  "timestamp_utc": "2026-11-05T03:05:58.121244+00:00"
+}

@@ -1,0 +1,11 @@
+nc: 6
+names:
+  - People
+  - Car
+  - Bus
+  - Motorcycle
+  - Lamp
+  - Truck
+train: /home2/home/preetham_g/gate_ir_release/data/m3fd/split/IR/images/train
+val: /home2/home/preetham_g/gate_ir_release/data/m3fd/split/IR/images/val
+test: /home2/home/preetham_g/gate_ir_release/experiments/03_m3fd_weather/method3_cyclegan/translated/thermal_rain/images/test

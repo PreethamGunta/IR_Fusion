@@ -1,0 +1,10 @@
+{
+  "condition": "crossover",
+  "severity": "medium",
+  "generated_test": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/data/generated/crossover/medium/test/images",
+  "generated_train": null,
+  "clear_test": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/data/clear_test/images/test",
+  "yaml": [
+    "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b0_crossover_medium_train.yaml"
+  ]
+}

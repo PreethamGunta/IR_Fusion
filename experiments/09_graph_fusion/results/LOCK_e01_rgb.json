@@ -1,0 +1,11 @@
+{
+ "experiment": "e01_rgb",
+ "config": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/configs/dronevehicle_v2_rgb.yaml",
+ "config_sha256": "887fae61c23a4fe273ee065ce7eba202922f285c928cee5fc3ee5dd519f73736",
+ "checkpoint": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/runs/e01_rgb/weights/best.pt",
+ "checkpoint_sha256": "c3ef8b55fe90c76465efae67b1fe185ddbc38db9aaf64b41aefa417849199196",
+ "selection_split": "val",
+ "selection_metric": "AP50-95",
+ "val_metric": 0.58822,
+ "timestamp": "2026-11-22T00:10:07Z"
+}

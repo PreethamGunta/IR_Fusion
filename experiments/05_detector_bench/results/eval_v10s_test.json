@@ -1,0 +1,102 @@
+{
+  "name": "v10s",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/05_detector_bench/runs/v10s/weights/best.pt",
+  "split": "test",
+  "imgsz": 640,
+  "conf": 0.001,
+  "iou": 0.7,
+  "debug": false,
+  "overall": {
+    "images": 1234,
+    "gt_boxes": 1614,
+    "detections": 2475,
+    "mAP50_95": 0.60631,
+    "mAP50": 0.95529,
+    "mAP75": 0.70267,
+    "AP_small": 0.31098,
+    "AP_medium": 0.6144,
+    "AP_large": 0.59462,
+    "AR_100": 0.66382
+  },
+  "per_condition": {
+    "clear": {
+      "images": 535,
+      "gt_boxes": 914,
+      "detections": 1331,
+      "mAP50_95": 0.63615,
+      "mAP50": 0.97391,
+      "mAP75": 0.74952,
+      "AP_small": 0.33069,
+      "AP_medium": 0.64585,
+      "AP_large": 0.0,
+      "AR_100": 0.69311
+    },
+    "fog": {
+      "images": 195,
+      "gt_boxes": 195,
+      "detections": 248,
+      "mAP50_95": 0.54336,
+      "mAP50": 0.82578,
+      "mAP75": 0.65887,
+      "AP_small": -1.0,
+      "AP_medium": 0.53163,
+      "AP_large": 0.73703,
+      "AR_100": 0.58615
+    },
+    "rain": {
+      "images": 504,
+      "gt_boxes": 505,
+      "detections": 896,
+      "mAP50_95": 0.57997,
+      "mAP50": 0.97173,
+      "mAP75": 0.65185,
+      "AP_small": 0.1,
+      "AP_medium": 0.58727,
+      "AP_large": 0.58115,
+      "AR_100": 0.64079
+    }
+  },
+  "size_profile": {
+    "clear": {
+      "boxes": 914,
+      "median_box_side_px": 71.6,
+      "p10_box_side_px": 34.9,
+      "p90_box_side_px": 83.5,
+      "frac_small": 0.0295,
+      "frac_medium": 0.9694,
+      "frac_large": 0.0011
+    },
+    "fog": {
+      "boxes": 195,
+      "median_box_side_px": 75.4,
+      "p10_box_side_px": 56.2,
+      "p90_box_side_px": 93.6,
+      "frac_small": 0.0,
+      "frac_medium": 0.9487,
+      "frac_large": 0.0513
+    },
+    "rain": {
+      "boxes": 505,
+      "median_box_side_px": 63.2,
+      "p10_box_side_px": 46.9,
+      "p90_box_side_px": 97.0,
+      "frac_small": 0.002,
+      "frac_medium": 0.8911,
+      "frac_large": 0.1069
+    },
+    "overall": {
+      "boxes": 1614,
+      "median_box_side_px": 68.9,
+      "p10_box_side_px": 36.8,
+      "p90_box_side_px": 88.1,
+      "frac_small": 0.0173,
+      "frac_medium": 0.9424,
+      "frac_large": 0.0403
+    }
+  },
+  "crosscheck": {
+    "ultralytics_mAP50_95": 0.60844,
+    "pycocotools_mAP50_95": 0.60631,
+    "delta": 0.00213
+  }
+}

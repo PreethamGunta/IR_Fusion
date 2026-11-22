@@ -1,0 +1,19 @@
+{
+  "name": "3a_cyclediff_fog_75_adv",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/01_flir_weather_translation/runs/3a_cyclediff_fog-8/weights/best.pt",
+  "weights_sha256": "d49334addc02143c",
+  "data": "/home2/home/preetham_g/gate_ir_release/data/flir_adas_v2/synthetic/cyclediff_75fog/fog/synthetic_fog.yaml",
+  "split": "test",
+  "split_hash": null,
+  "n_images": 3749,
+  "imgsz": 640,
+  "mAP50_95": 0.16221,
+  "mAP50": 0.30371,
+  "precision": 0.39515,
+  "recall": 0.30286,
+  "per_class_AP": {},
+  "git_commit": "748f6e8",
+  "git_dirty": true,
+  "git_diff_hash": "51ab6a7d7d9eac6e",
+  "hostname": "ub"
+}

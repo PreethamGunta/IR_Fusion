@@ -1,0 +1,43 @@
+{
+ "nc": 4,
+ "k": 40,
+ "conf": 0.01,
+ "temp": 2.0,
+ "warmup_epochs": 5,
+ "kd_every": 4,
+ "kd_weight": 1.0,
+ "lambda_node": 1.0,
+ "lambda_edge": 0.5,
+ "lambda_struct": 0.1,
+ "lambda_feat": 0.1,
+ "cost_alpha": [
+  1.0,
+  1.0,
+  0.5,
+  0.5
+ ],
+ "sinkhorn_eps": 0.05,
+ "sinkhorn_iters": 20,
+ "fgw_eta": 0.5,
+ "fgw_outer": 6,
+ "method": "three_teacher",
+ "matcher": "hungarian",
+ "teachers": [
+  {
+   "cache": "data/cache/ir",
+   "weight": 1.0,
+   "kind": "ir"
+  },
+  {
+   "cache": "data/cache/rgb",
+   "weight": 1.0,
+   "kind": "rgb"
+  },
+  {
+   "cache": "data/cache/fused",
+   "weight": 1.0,
+   "kind": "fused"
+  }
+ ],
+ "consistency_weight": 0.05
+}

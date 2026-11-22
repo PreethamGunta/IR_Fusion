@@ -1,0 +1,29 @@
+id,tier,parent,hypothesis,change,dataset,split,seed,epochs,params,FLOPs,latency,AP50-95,AP50,AP75,per-class AP,val/test flag,lock id,decision,notes,run dir
+E00,A,-,IR-only YOLO12s reference,single stream,DroneVehicle-v2,val/test,0,85 (patience),9.26M,,,0.57828,0.76281,0.69743,car 0.690/truck 0.554/bus 0.759/van 0.411/freight_car 0.477,test,LOCK_e00_ir.json,reference_complete,single seed; ultralytics val 0.63055 ep55; locked-protocol val 0.58757,runs/e00_ir
+E01,A,-,RGB-only YOLO12s reference (thermal GT),single stream,DroneVehicle-v2,val/test,0,100,9.26M,,,0.41264,0.65337,0.45111,car 0.462/truck 0.402/bus 0.624/van 0.279/freight_car 0.296,test,LOCK_e01_rgb.json,reference_complete,"thermal-GT grading (training val 0.58822 visible GT, ep84)",runs/e01_rgb
+E02,A,-,6-channel early fusion reference,concat input,DroneVehicle-v2,val/test,0,"100 (recipe cap, still climbing)",9.28M,,,0.47619,0.69418,0.57086,car 0.597/truck 0.453/bus 0.697/van 0.303/freight_car 0.331,test,LOCK_e02_fused.json,early_fusion_hurts_-10.2pp_vs_E00,paired augs; ultralytics val 0.50471 ep100; locked val 0.46847,runs/e02_fused
+E03,A,-,late fusion of E00+E01,WBF/NMS concat,DroneVehicle-v2,val/test,0,-,2x9.26M (E00+E01),,,0.57939,0.78682,0.70746,car 0.663/truck 0.571/bus 0.750/van 0.422/freight_car 0.491,test,LOCK_e03_late_fusion.json,no_detectable_AP50-95_gain_vs_E00(+0.11pp<0.5pp);+2.40pp_AP50;_bootstrap_pending,WBF iou0.6 w1.5:1 scale-members; val-calibrated,results/preds/e03_late_fusion_test.json
+E10,B,-,dual-stream concat+1x1 ladder base,concat+1x1 at P3-P5,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E11,B,E10,elementwise add,fixed add,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E12,B,E10,channel-softmax modality gate,SE-style gate,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E13,B,E10,channel+spatial gates,MSFA-style,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E14,B,E10,IR-reference residual,gate-negative init,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E15,B,E13,deformable visible-guided IR alignment,ISA-lite,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,optional
+E20,B,E14,dense cross-attention IR<-RGB,queries IR keys/values RGB,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E21,B,E14,bidirectional block-shared cross-attention,DMFF-style own implementation,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E22,B,E21,intra-modal self-attention control,parameter-matched to E21,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E30,B,E14,GAT on grid + cross-modal edges,conv->graph only,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E31,B,E30,GCN operator,operator swap,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E32,B,E30,GraphSAGE operator,operator swap,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E33,B,E30,GATv2 + edge features,operator swap,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E34,B,E30,bidirectional messages,add RGB<-IR,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E35,B,E34,semantic-kNN cross-modal edges,correspondence-aware,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E36,B,E35,cross-scale edges,child-parent links,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E37,B,E35,typed edges,type-specific weights,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E38,B,E35,connectivity sweep,radius/k sweep,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E39,B,E35,residual vs direct output,output form,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E40,B,E35,gate type sweep,fixed/learned/quality,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E41,B,E35,placement study,P3/P4/P5/post-neck,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,
+E50,B,E35,object-level OT graph,candidate matching,DroneVehicle-v2,val/test,0/1/2,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,optional
+EXT-IVPAF,A,-,IV-PAFNet native reproduction,external repo,DroneVehicle,val,42,,TBD,TBD,TBD,,,,,val,,-,blocked_gpu,no released weights
+EXT-ICAF,A,-,ICAFusion native reproduction,external repo,FLIR3,test,0,,TBD,TBD,TBD,,,,,test,,-,blocked_gpu,Baidu weights unavailable

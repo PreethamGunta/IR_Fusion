@@ -1,0 +1,39 @@
+{
+ "AP": 0.9999999999999998,
+ "AP50": 0.9999999999999999,
+ "AP75": 0.9999999999999999,
+ "APs": -1.0,
+ "APm": 0.9999999999999998,
+ "APl": -1.0,
+ "AR1": 1.0,
+ "AR10": 1.0,
+ "AR100": 1.0,
+ "per_class_AP": {
+  "person": 0.9999999999999998
+ },
+ "n_images": 1,
+ "n_annotations": 1,
+ "n_predictions": 1,
+ "settings": {
+  "conf": 0.001,
+  "maxDet": 100,
+  "iouType": "bbox"
+ },
+ "experiment": "locktest",
+ "lock": {
+  "experiment": "locktest",
+  "config": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/audit/locktest/config.yaml",
+  "config_sha256": "0e4b08fa681c8da2a5973dfbabe13927138e6442398a403a670ad2bf0ad8cb90",
+  "checkpoint": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/audit/locktest/ckpt.pt",
+  "checkpoint_sha256": "b5a2c96250612366ea272ffac6d9744aaf4b45aacd96aa7cfcb931ee3b558259",
+  "selection_split": "val",
+  "selection_metric": "AP50-95",
+  "val_metric": 0.5,
+  "timestamp": "2026-11-21T14:17:48Z"
+ },
+ "gt": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/audit/locktest/gt.json",
+ "gt_sha256": "0f122eef4b67ac638bd456facc6f0abed050733213bbc400e17f6ad574a3d2f3",
+ "preds": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/audit/locktest/preds.json",
+ "preds_sha256": "bea4548baeee7e38b51ae495011ccfbce21fff5f23c2ac3a4b3820e91337a0be",
+ "timestamp": "2026-11-21T14:17:55Z"
+}

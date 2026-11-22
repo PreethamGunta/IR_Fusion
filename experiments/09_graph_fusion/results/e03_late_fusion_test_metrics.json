@@ -1,0 +1,43 @@
+{
+ "AP": 0.5793874527961792,
+ "AP50": 0.7868188412454548,
+ "AP75": 0.7074558211722877,
+ "APs": 0.20871009115162376,
+ "APm": 0.5759857570972979,
+ "APl": 0.6312793481822544,
+ "AR1": 0.18524745859765357,
+ "AR10": 0.5223616276436902,
+ "AR100": 0.6885701666937368,
+ "per_class_AP": {
+  "car": 0.6633666476582986,
+  "truck": 0.5704562303014497,
+  "bus": 0.7499976932941336,
+  "van": 0.4222174891361713,
+  "freight_car": 0.490899203590843
+ },
+ "n_images": 8980,
+ "n_annotations": 159613,
+ "n_predictions": 497775,
+ "settings": {
+  "conf": 0.001,
+  "maxDet": 100,
+  "iouType": "bbox"
+ },
+ "experiment": "e03_late_fusion",
+ "lock": {
+  "experiment": "e03_late_fusion",
+  "config": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/results/e03_config.json",
+  "config_sha256": "64d0154decde0b1f9c0dc31594ab751936d82b2fd66bc644326fec4c1c3685b7",
+  "checkpoint": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/runs/e00_ir/weights/best.pt",
+  "checkpoint_sha256": "a5645f73fc95b67a94268e00bf7680f3541dcdb60ef9ff46ea371bb29f493850",
+  "selection_split": "val",
+  "selection_metric": "AP50-95",
+  "val_metric": 0.58833,
+  "timestamp": "2026-11-22T00:58:18Z"
+ },
+ "gt": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/results/gt/dv_v2_ir_test.json",
+ "gt_sha256": "60f902dcb6c80ff3271c90f7a72ac9f6aacc898bf344ac757452620647a5a44b",
+ "preds": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/results/preds/e03_late_fusion_test.json",
+ "preds_sha256": "e87d5f780688ac3b96f3623e0370dedf48a3f1309b7e981ecc5d31b7a85603ed",
+ "timestamp": "2026-11-22T02:25:13Z"
+}

@@ -1,0 +1,22 @@
+path: /home2/home/preetham_g/gate_ir_release
+train:
+- /home2/home/preetham_g/gate_ir_release/data/flir_adas_v2/yolo/train_3a/images/train_clear
+val: /home2/home/preetham_g/gate_ir_release/data/flir_adas_v2/yolo/train_3a/images/val
+test: /home2/home/preetham_g/gate_ir_release/data/flir_adas_v2/synthetic/cyclegan/fog/images/test
+nc: 15
+names:
+- person
+- bike
+- car
+- motor
+- bus
+- train
+- truck
+- light
+- hydrant
+- sign
+- face
+- other_vehicle
+- backpack
+- bag
+- other

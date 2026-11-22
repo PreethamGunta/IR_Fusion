@@ -1,0 +1,34 @@
+{
+  "total_images": 30788,
+  "total_labels": 18,
+  "ir_candidates": 0,
+  "rgb_candidates": 1,
+  "weather_dirs": [
+    "images_thermal_train",
+    "images_rgb_train"
+  ],
+  "metadata_files": [
+    "images_thermal_train/coco.json",
+    "images_thermal_train/index.json",
+    "video_thermal_test/coco.json",
+    "video_thermal_test/index.json",
+    "video_rgb_test/coco.json",
+    "video_rgb_test/index.json",
+    "images_rgb_val/coco.json",
+    "images_rgb_val/index.json",
+    "images_rgb_train/coco.json",
+    "images_rgb_train/index.json",
+    "images_thermal_val/coco.json",
+    "images_thermal_val/index.json"
+  ],
+  "resolutions": {
+    "(640, 512)": 100
+  },
+  "formats": {
+    "JPEG": 100
+  },
+  "modes": {
+    "L": 100
+  },
+  "class_distribution": {}
+}

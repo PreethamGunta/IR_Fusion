@@ -1,0 +1,48 @@
+{
+  "name": "v12s_m3fd_3b_cgan_rain",
+  "model": "weights/yolo12s.pt",
+  "epochs": 100,
+  "imgsz": 640,
+  "batch": 64,
+  "workers": 14,
+  "seed": 0,
+  "weather_aug": false,
+  "debug": false,
+  "resumed": null,
+  "optimizer": "AdamW",
+  "lr0": 0.001,
+  "cos_lr": true,
+  "patience": 25,
+  "epochs_trained": 53,
+  "early_stopped": true,
+  "best_epoch": 29,
+  "train_seconds": 1430.0,
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/03_m3fd_weather/method3_cyclegan/datasets/cyclegan_rain_3b.yaml",
+  "split_hash": "effb9b3090ad2fcb",
+  "n_images": {
+    "train": 5040,
+    "val": 480,
+    "test": 600
+  },
+  "weights_path": "/home2/home/preetham_g/gate_ir_release/experiments/03_m3fd_weather/runs/v12s_m3fd_3b_cgan_rain/weights/best.pt",
+  "weights_sha256": "abd3bb6ff7e87246",
+  "metrics": {
+    "val": {
+      "mAP50": 0.35973,
+      "mAP50_95": 0.23621,
+      "precision": 0.55464,
+      "recall": 0.35308
+    },
+    "test": {
+      "mAP50": 0.21862,
+      "mAP50_95": 0.11469,
+      "precision": 0.35224,
+      "recall": 0.28168
+    }
+  },
+  "git_commit": "cdc6109",
+  "git_dirty": true,
+  "git_diff_hash": "ca6a86d21c725e85",
+  "slurm_job_id": "8756",
+  "hostname": "ub"
+}

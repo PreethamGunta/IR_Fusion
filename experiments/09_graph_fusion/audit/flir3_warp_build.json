@@ -1,0 +1,10 @@
+{
+ "policy": "warp",
+ "splits": {
+  "train": 3752,
+  "val": 365,
+  "test": 1013,
+  "test_clean": 491
+ },
+ "dog_dropped": 120
+}

@@ -1,0 +1,987 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{url}
+
+\graphicspath{{figures/}}
+\hypersetup{colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black,citecolor=blue!55!black}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{0pt}
+\setlength{\emergencystretch}{2em}
+
+\title{\textbf{Thermal Object Detection in Adverse Weather}\\[0.3em]
+\large A Consolidated Report on Real-Weather Baselines, Synthetic-Weather Generation,\\
+and Learned Image Enhancement}
+\author{GATE-IR Project}
+\date{15 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This report consolidates the experiments carried out in the GATE-IR project on
+thermal (infrared) object detection under adverse weather. We study three
+datasets in increasing order of control: \textbf{UNIRI-TID}, which contains real
+clear, fog and rain sequences; \textbf{M3FD}, a paired infrared/visible dataset
+for which fog and rain were generated synthetically by three different methods;
+and \textbf{FLIR ADAS v2}, a large thermal dataset with no real fog, for which
+fog was generated with CycleGAN and with a diffusion-based translation model.
+Across these datasets we compare detectors, weather-synthesis methods, classical
+image filters, a learned U-Net dehazer, and a learned clear/fog gate.
+
+The main findings are: (i) on real weather, the clear-to-fog accuracy gap is
+small once training and evaluation use the same frames, and mixed-weather
+training largely closes it; (ii) on M3FD, deterministic synthetic fog is essentially free after mixed
+training, whereas learned (CycleGAN) fog retains a residual gap of about 0.05; (iii) on FLIR, only the learned
+U-Net dehazer helps, classical filters do not, and a 100-epoch matched comparison
+improves fog mAP@50 from 0.2430 to 0.2856 (+17.5\%) while reducing the
+clear-to-fog gap by 43\%; (iv) the dehazer does not transfer across generators,
+and even a dehazer retrained on the target generator remains below the
+unfiltered baseline; and (v) gating is an efficiency technique, not a reliable
+accuracy technique: in an indicative 40-epoch comparison always-on filtering
+scored higher, but that comparison used different detector sizes (YOLOv8s versus
+YOLOv12s) and is therefore not controlled; and (vi) an eight-condition extension
+on FLIR shows that snow, sensor degradation, defocus and static obstruction
+cause clear, measurable gaps, and that mixed training closes 52--78\,\% of them.
+Small-target pixelation is the exception: it is a strong learnable cue, producing
+a negative gap rather than a robustness gain.
+
+All numbers in this report were extracted from result files preserved with the
+project. No experiment was re-run while the report was written.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%======================================================================
+\section{Introduction and scope}
+
+Thermal cameras measure emitted infrared radiation and therefore see at night
+and in low light, which makes them attractive for safety and automotive
+perception. Their weakness is adverse weather: fog, rain and snow scatter or
+absorb radiation, reduce contrast, and erase the fine edges that object
+detectors rely on. The GATE-IR project asks a practical question:
+
+\begin{quote}
+\emph{Can a cheap, learned preprocessing stage make a thermal detector robust to
+adverse weather, and is it better to apply that stage to every frame or only to
+frames that a small gate classifies as adverse?}
+\end{quote}
+
+We study the question in three settings, reported in this order:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{UNIRI-TID} (Section~\ref{sec:uniri}): real clear, fog and rain
+        thermal sequences. This is the most realistic setting and establishes
+        what the weather gap looks like without synthetic data.
+  \item \textbf{M3FD} (Section~\ref{sec:m3fd}): paired infrared/visible scenes
+        with synthetically generated fog and rain. This lets us compare three
+        very different synthesis methods under a controlled protocol.
+  \item \textbf{FLIR ADAS v2} (Section~\ref{sec:flir}): a large thermal driving
+        dataset with no real fog. Fog is generated with two learned translation
+        models, and the detector, filter and gate are compared on exactly the
+        same evaluation frames.
+\end{enumerate}
+
+Section~\ref{sec:flir-adverse} extends the FLIR line with eight additional
+adverse conditions. It screens a clear-trained detector on each condition and
+retrains only on the conditions that create a measurable gap, rather than
+assuming that every simulated degradation is equally harmful.
+
+Section~\ref{sec:discussion} discusses the cross-cutting lessons,
+Section~\ref{sec:limitations} lists the limitations, and
+Section~\ref{sec:repro} explains how the work can be reproduced.
+
+%======================================================================
+\section{Terminology}
+
+The report deliberately avoids internal experiment codes. Table~\ref{tab:terms}
+defines every term used later.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Terminology used in this report.}
+\label{tab:terms}
+\begin{tabular}{@{}p{0.26\linewidth}p{0.68\linewidth}@{}}
+\toprule
+Term & Meaning in this report \\
+\midrule
+Thermal / infrared image & A single-channel image of emitted heat, usually displayed in grayscale or a false-colour palette. \\
+Visible (RGB) image & An ordinary three-channel photograph. M3FD contains paired thermal and visible images. \\
+Adverse weather & Fog, rain or snow. In this project, ``adverse'' always means one of these three conditions. \\
+Synthetic weather & An image generated from a clear image by a weather-simulation method, rather than captured in real weather. \\
+Clear-only training & Training a detector only on clear images, then testing it on adverse images. This measures the raw weather gap. \\
+Mixed-weather training & Training on clear images plus adverse images, then testing on adverse images. This is the realistic deployment protocol. \\
+Domain shift & Accuracy loss caused by a difference between training and test image statistics (for example, different cameras, scenes or generators), not by weather itself. \\
+mAP@50 & Mean average precision with an intersection-over-union threshold of 0.50. \\
+mAP@50--95 & Mean average precision averaged over thresholds 0.50, 0.55, \ldots, 0.95. The stricter and more informative detection metric. \\
+APm & Average precision for medium-sized objects (COCO definition, 32$^2$ to 96$^2$ pixels). Used on UNIRI-TID. \\
+Gap & Clear-image score minus adverse-image score, in the same metric. A smaller gap is better. \\
+CycleGAN & An unpaired image-to-image translation model that learns a mapping between two image domains without paired examples. \\
+CycleDiff & A diffusion-based translation model that combines a latent diffusion model with cycle consistency. \\
+Dehazer & A learned image-to-image network (here, a small U-Net) trained to map an adverse image back towards a clear image. \\
+Gamma correction & A point-wise intensity transform that brightens or darkens an image. \\
+CLAHE & Contrast-limited adaptive histogram equalisation, a local contrast enhancement filter. \\
+DCP & Dark-channel prior, a classical physics-inspired dehazing method. \\
+Gate & A small classifier that decides whether a frame is clear or adverse. \\
+Gated inference & At test time, the gate sends clear frames directly to the detector and adverse frames through the filter first. \\
+Always-on filtering & Every frame, clear or adverse, passes through the filter before detection. \\
+Matched-frame evaluation & Scoring clear and adverse conditions on exactly the same frame indices, so that the measured difference is weather, not a different test set. \\
+Early stopping & Ending training when the validation score has not improved for a fixed number of epochs (25 here). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%======================================================================
+\section{Datasets}
+
+\subsection{UNIRI-TID (real weather)}
+UNIRI-TID\cite{uniri} is a thermal dataset with real clear, fog and rain sequences. We use a
+sequence-disjoint split (no sequence appears in more than one split) and report
+results on the test split: \textbf{1,234 images} (535 clear, 195 fog, 504 rain).
+The images are false-colour thermal frames; the palette is part of the recorded
+data and is identical across conditions. The dataset is small and the fog test
+set in particular is limited to two sequences, so absolute fog numbers are less
+stable than the clear and rain numbers.
+
+\subsection{M3FD (synthetic weather on paired thermal/visible data)}
+M3FD\cite{m3fd} contains paired thermal and visible images of driving scenes with six
+object classes. We use a chunk-disjoint temporal split with hash
+\texttt{effb9b3090ad2fcb}. Fog and rain are generated synthetically by three
+methods (Section~\ref{sec:m3fd-methods}). The clear baseline is evaluated on the
+same test frames as the synthetic conditions.
+
+\subsection{FLIR ADAS v2 (synthetic fog on thermal data)}
+FLIR ADAS v2\cite{flir} is a large thermal driving dataset with 15 object classes. It has
+no real fog. We therefore use the \textbf{3,749-frame FLIR test set} as the
+common evaluation set and generate fog with two learned translation models. Every condition (clear, fog, filtered fog) is scored on the
+same 3,749 frames with the same labels. This matched-frame protocol is essential:
+older runs compared 1,200 in-domain clear frames with 3,749 out-of-domain fog
+frames, which overstates the weather gap (Section~\ref{sec:flir-protocol}).
+
+
+%======================================================================
+\section{Methods}
+
+\subsection{Detectors}
+All detectors are one-stage YOLO-family models\cite{yolo} trained with the same recipe:
+640$\times$640 input, AdamW with automatic learning rate, cosine schedule,
+early stopping after 25 epochs without improvement, and a fixed random seed.
+Unless stated otherwise, training uses a batch size of 16 on FLIR and 64 on
+M3FD, and evaluation uses a confidence threshold of 0.001 and an IoU threshold
+of 0.5 for non-maximum suppression. We report mAP@50 and mAP@50--95; on
+UNIRI-TID we additionally report APm because small and medium objects dominate
+the scene.
+
+\paragraph{Reading the tables.}
+All detection scores are fractions in $[0,1]$ and higher is better, except the
+gap, which is always \emph{clear minus adverse} and lower is better. mAP@50 and
+mAP@50--95 are defined in Table~\ref{tab:terms}; APm is medium-object average
+precision. \(n\) is the number of test images, and ``--'' means not applicable.
+
+\subsection{Weather synthesis}
+\label{sec:m3fd-methods}
+Three families were compared on M3FD:
+\begin{description}[leftmargin=1.4em,style=nextline]
+  \item[Classical overlays.] A uniform veil, rain streaks or snow particles are
+        composited onto the clear thermal image. The method is deterministic,
+        fast (minutes), and its severity is controlled explicitly.
+  \item[Depth-aware fog.] A Koschmieder fog model is applied with a
+        transmission map derived from a depth estimate. This produces spatially
+        varying fog that respects scene geometry.
+  \item[Learned translation.] CycleGAN\cite{cyclegan} learns an unpaired mapping from clear to
+        adverse using real adverse thermal images (DSERT-RoLL) as the target
+        domain. On FLIR we also use CycleDiff\cite{cyclediff}, a diffusion-based translator, and
+        a 75\,\% blend of clear and translated fog.
+\end{description}
+
+\subsection{Enhancement filters}
+We compare four ways to make an adverse image easier to detect:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Gamma correction:} an adaptive point-wise brightening based on
+        the image mean.
+  \item \textbf{CLAHE:} contrast-limited adaptive histogram equalisation on the
+        lightness channel\cite{clahe}.
+  \item \textbf{Dark-channel prior (DCP):} a classical physics-inspired dehazing
+        operator\cite{dcp} with a guided-filter refinement.
+  \item \textbf{Learned U-Net dehazer:} a small encoder--decoder network trained
+        on pairs of (clear, synthetic adverse) images to reconstruct the clear
+        image.
+\end{itemize}
+
+\subsection{Gating}
+A binary clear/adverse classifier is trained on five simple image features
+(variance, minimum, maximum, entropy and Laplacian variance) followed by a small
+multilayer perceptron. At inference, the gate can route clear frames directly to
+the detector and adverse frames through the filter (gated inference), or the
+filter can be applied to every frame (always-on filtering).
+
+%======================================================================
+\section{UNIRI-TID: real-weather baselines}
+\label{sec:uniri}
+
+\subsection{Question}
+Before building any synthetic-weather pipeline, we asked how large the weather
+gap is when the weather is real. If the gap is already small, a gate or a
+heavy restoration network has little accuracy headroom.
+
+
+\subsection{Detector comparison}
+Table~\ref{tab:uniri} compares six detector configurations and one invalid
+RT-DETR run; Figure~\ref{fig:uniri} shows representative real-weather frames. All models use the same sequence-disjoint split.
+
+\begin{table}[H]
+\centering
+\small
+\caption{UNIRI-TID test results. Each row is one detector. Columns: overall test
+mAP@50--95; APm for clear, fog and rain; and the clear-minus-fog APm gap. Higher
+is better except the gap, which is better when smaller.}
+\label{tab:uniri}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Detector & mAP@50--95 & APm clear & APm fog & APm rain & Clear$-$fog \\
+\midrule
+YOLOv8s                       & 0.6204 & 0.6623 & 0.5344 & 0.5951 & 0.128 \\
+YOLO11s                       & 0.6194 & 0.6585 & 0.5264 & 0.6038 & 0.132 \\
+\textbf{YOLOv12s}             & \textbf{0.6296} & \textbf{0.6670} & \textbf{0.5733} & 0.6025 & \textbf{0.094} \\
+YOLOv8s + weather augmentation& 0.6278 & 0.6652 & 0.5691 & 0.6035 & 0.096 \\
+YOLOv10s                      & 0.6063 & 0.6459 & 0.5316 & 0.5873 & 0.114 \\
+YOLOv8s-P2                    & 0.6071 & 0.6480 & 0.4954 & 0.5909 & 0.153 \\
+RT-DETR-l (invalid)           & 0.2778 & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_uniri_conditions.png}
+\caption{Real thermal conditions in UNIRI-TID. Rows are clear, fog and rain;
+columns are three non-adjacent frames from different sequences (frame~1354 /
+sequence~3, frame~2464 / sequence~17, frame~2881 / sequence~19 for clear; frames
+4440, 4555 and 4634 for fog; frames 4749, 5403 and 7109 for rain). The images are
+false-colour thermal frames; the palette and the on-screen temperature scale are
+part of the recorded data.}
+\label{fig:uniri}
+\end{figure}
+
+
+\subsection{Key points}
+\begin{itemize}[leftmargin=1.4em]
+  \item The best detector is YOLOv12s (mAP@50--95 0.6296), and it also has the
+        smallest clear-to-fog APm gap (0.094).
+  \item Weather augmentation improves fog APm from 0.5344 to 0.5691 at almost no
+        cost in clear APm. Mixed-weather training is therefore effective on real
+        weather.
+  \item mAP@50 is saturated (roughly 0.96--0.97 for all models) and is not a
+        useful discriminator; the report uses mAP@50--95 and APm.
+  \item The RT-DETR-l run stopped after 29 epochs because of a wall-time limit
+        and is reported only to document that it is invalid.
+\end{itemize}
+
+A gated-preprocessing variant study was scaffolded on UNIRI-TID, but it did not
+produce a completed result table (only logs), so it is not used for conclusions.
+The real-weather evidence pointed in a clear direction: because mixed training
+already closes most of the gap, the project moved to controlled synthetic weather
+where the effect of a filter could be isolated.
+
+%======================================================================
+\section{M3FD: comparing weather-synthesis methods}
+\label{sec:m3fd}
+
+\subsection{Question}
+If synthetic weather is used for training, does the choice of synthesis method
+matter? We compare classical overlays, depth-aware fog and CycleGAN under two
+protocols:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Clear-only training:} train on clear thermal images, test on
+        synthetic weather. This measures how far the synthetic weather moves the
+        image away from the training distribution.
+  \item \textbf{Mixed-weather training:} train on clear plus synthetic weather,
+        test on synthetic weather. This measures whether the detector can learn
+        the synthetic weather.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_m3fd_synthesis.png}
+\caption{M3FD synthetic-weather comparison for three non-adjacent frames
+(00001, 00060 and 01170). Columns: the original clear thermal image, classical
+fog, depth-aware fog, and learned fog from CycleGAN. The clear image is the
+reference; the three synthetic columns are generated from it. The classical and
+depth methods produce a smooth veil, while CycleGAN produces a darker, more
+textured fog.}
+\label{fig:m3fd}
+\end{figure}
+
+\subsection{Results}
+Figure~\ref{fig:m3fd} shows the three synthesis methods on non-adjacent frames,
+and Table~\ref{tab:m3fd} reports the mAP of YOLOv12s on the clean split. The clear
+baseline is mAP@50 0.268 and mAP@50--95 0.148.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{M3FD synthetic-weather results (YOLOv12s, clean split
+\texttt{effb9b3090ad2fcb}). Each row is one (synthesis method, training protocol,
+test condition) combination. ``Clear-only'' means trained on clear images and
+tested on the condition; ``mixed'' means trained on clear plus the condition.
+Columns: mAP@50, mAP@50--95, and the clear-minus-condition gap in mAP@50--95;
+lower gap is better.}
+\label{tab:m3fd}
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Method & Training & Condition & mAP@50 & mAP@50--95 & Gap \\
+\midrule
+Classical   & clear-only & fog light   & 0.268 & 0.148 & 0.001 \\
+Classical   & clear-only & fog medium  & 0.243 & 0.135 & 0.013 \\
+Classical   & clear-only & fog heavy   & 0.206 & 0.117 & 0.032 \\
+Classical   & clear-only & rain light  & 0.261 & 0.144 & 0.005 \\
+Classical   & clear-only & rain medium & 0.189 & 0.094 & 0.054 \\
+Classical   & clear-only & rain heavy  & 0.079 & 0.041 & 0.108 \\
+\midrule
+Depth       & clear-only & fog medium  & 0.199 & 0.114 & 0.035 \\
+Depth       & clear-only & fog heavy   & 0.097 & 0.072 & 0.076 \\
+Depth       & clear-only & rain medium & 0.094 & 0.054 & 0.054 \\
+Depth       & clear-only & rain heavy  & 0.011 & 0.011 & 0.137 \\
+Depth       & mixed      & clear test  & 0.244 & 0.141 & -- \\
+Depth       & mixed      & fog heavy   & 0.237 & 0.140 & $-0.001$ \\
+\midrule
+CycleGAN    & clear-only & fog         & 0.075 & 0.048 & 0.101 \\
+CycleGAN    & clear-only & rain        & 0.185 & 0.105 & 0.044 \\
+CycleGAN    & mixed      & clear test  & 0.260 & 0.147 & -- \\
+CycleGAN    & mixed      & fog         & 0.193 & 0.098 & 0.049 \\
+CycleGAN    & mixed      & rain        & 0.197 & 0.104 & 0.011 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\subsection{Key points}
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Deterministic fog is learnable.} Depth-aware fog has a
+        clear-only gap of 0.076 but a mixed-training gap of $-0.001$: once the
+        detector sees the same deterministic transform during training, the
+        weather costs nothing.
+  \item \textbf{CycleGAN fog has the largest clear-only gap} (0.101), because its
+        texture and contrast differ most from clear images. Mixed training
+        reduces that gap to 0.049, but it does not eliminate it.
+  \item \textbf{Learned fog retains a residual gap.} Under mixed training the
+        remaining gaps are 0.049 for CycleGAN fog, 0.011 for CycleGAN rain and
+        $-0.001$ for depth-aware fog. The practical lesson is that the choice of
+        synthesis method matters more than the nominal severity: a deterministic
+        veil is easier to learn than a learned translation.
+  \item \textbf{Rain is harder than fog} for the classical and depth methods:
+        heavy rain drops the clear-only mAP@50--95 to 0.041 and 0.011
+        respectively. This is consistent with rain streaks destroying thin
+        structures rather than merely lowering contrast.
+\end{itemize}
+
+%======================================================================
+\section{FLIR ADAS v2: learned enhancement under synthetic fog}
+\label{sec:flir}
+
+\subsection{Question}
+FLIR has no real fog, but it has a large, well-labelled thermal test set. We
+therefore generate fog with two learned models and ask three questions:
+\begin{enumerate}[leftmargin=1.4em]
+  \item Does a learned dehazer improve detection on synthetic fog?
+  \item Do classical filters help?
+  \item Is it better to filter every frame or to gate the filter?
+\end{enumerate}
+
+\subsection{Data and matched-frame protocol}
+\label{sec:flir-protocol}
+The evaluation set is the 3,749-frame test set. For each frame we have:
+the original clear image, a CycleGAN fog image, a CycleDiff-75 fog image (a
+75\,\% blend of clear and diffusion-generated fog), and a U-Net-dehazed version
+of the CycleDiff-75 image. All conditions share the same labels and the same
+frame indices.
+
+This matters because the older protocol compared \textbf{1,200 in-domain clear
+frames} with \textbf{3,749 out-of-domain fog frames}. Re-scoring the same fog
+model on the same 3,749 clear frames gives clear mAP@50--95 0.1669 and fog
+0.1445, a gap of only 0.022. The apparent 0.18 gap in the old protocol was mostly
+domain shift, not weather.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_flir_synthesis.png}
+\caption{FLIR synthetic fog and dehazing for three non-adjacent frames from
+three different videos (Video~A: \texttt{4FRnNpmSmwktFJKjg}, frame~000938;
+Video~B: \texttt{ZAtDSNuZZjkZFvMAo}, frame~000896; Video~C:
+\texttt{SCiKdG3MqZfiE292B}, frame~007909). Columns: original clear thermal
+image, CycleGAN fog, CycleDiff-75 fog, CycleDiff-100 fog, and the U-Net dehazed
+version of the CycleDiff-75 image. The 100\,\% diffusion translation is almost
+featureless; the 75\,\% blend is the usable one. The dehazer restores much of
+the contrast and edge structure of the clear image.}
+\label{fig:flir-synthesis}
+\end{figure}
+
+\subsection{Weather synthesis quality}
+The paired clear-to-fog translation was also scored with image-similarity
+metrics: PSNR 14.01\,dB, SSIM 0.636 and LPIPS 0.602 over 3,749 pairs. These
+numbers measure how far the translation moves away from the clear source; they
+are not a realism score. No FID was computed, so we do not claim a distributional
+quality result.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_flir_weather.png}
+\caption{The same FLIR frame under clear conditions and two CycleGAN weather
+translations (fog and rain). It illustrates the weather-synthesis coverage
+available for training; the quantitative experiments focus on fog because it is
+the condition with a complete detector comparison.}
+\label{fig:flir-weather}
+\end{figure}
+
+\paragraph{Training time.}
+The final CycleDiff translator continuation (100k to 105k steps) ran from
+14:17 to 18:41 on 25 October 2026, i.e.\ 4\,h\,24\,min, measured from the
+creation and last-write times of \path{experiments/01_flir_weather_translation/method4_cyclediff/logs/train_100k_105k.log} and the matching
+event file. The pipeline was trained in stages: the two VAEs on 9--10 October,
+the two latent-diffusion models on 12--15 October, and the cycle translator in
+several runs between 15 and 25 October. Because the stages waited in the cluster
+queue and resumed several times, the 10--25 October calendar span is not a
+compute-time figure; the final translator run is the directly comparable
+training cost.
+
+Figure~\ref{fig:flir-synthesis} includes the 100\,\% CycleDiff translation. It is
+almost featureless in these examples, and the detector trained on it scored
+0.000 mAP in the original evaluation; the experiments therefore use the
+75\,\% blend.
+
+\subsection{Matched detector baselines}
+Table~\ref{tab:flir-original} reports the matched test-set scores (all 3,749
+frames). Both rows are matched clear/fog pairs. The older 1,200-frame in-domain
+clear evaluations are omitted because they are not comparable to the
+3,749-frame fog test.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Matched test-set results for the two usable generators. Every score
+uses the same 3,749-frame test set. Each row is one trained model; columns are
+clear mAP@50, clear mAP@50--95, fog mAP@50, fog mAP@50--95, and the
+clear-minus-fog mAP@50--95 gap. Both rows are matched clear/fog pairs. Rows are
+not a model-versus-model comparison: compare clear and fog within a row, not
+across rows.}
+\label{tab:flir-original}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Generator & Clear 50 & Clear 50--95 & Fog 50 & Fog 50--95 & Gap \\
+\midrule
+CycleGAN      & 0.3055 & 0.1669 & 0.2718 & 0.1445 & 0.0224 \\
+CycleDiff-75  & 0.2746 & 0.1491 & 0.2747 & 0.1495 & $-0.0004$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Filter screen}
+A 60-epoch screen compared five filters on the same matched frames with a
+YOLOv8s detector (Table~\ref{tab:flir-screen}). Only the learned U-Net dehazer
+improves the fog score; the classical filters either leave it unchanged or make
+it worse (Figure~\ref{fig:flir-filters}).
+
+\begin{table}[H]
+\centering
+\small
+\caption{FLIR filter screen (YOLOv8s, 60 epochs, matched 3,749-frame test set).
+Each row is one filter applied to the same fog frames; columns are clear and fog
+mAP@50--95 and their gap. ``None'' is the unfiltered baseline.}
+\label{tab:flir-screen}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Filter & Clear mAP@50--95 & Fog mAP@50--95 & Gap \\
+\midrule
+None (baseline)      & 0.1646 & 0.1413 & 0.0233 \\
+Gamma                & 0.1588 & 0.1369 & 0.0219 \\
+CLAHE                & 0.1636 & 0.1335 & 0.0301 \\
+Dark-channel prior   & 0.1651 & 0.1394 & 0.0257 \\
+\textbf{U-Net dehazer} & \textbf{0.1676} & \textbf{0.1524} & \textbf{0.0152} \\
+Gamma + CLAHE        & 0.1610 & 0.1384 & 0.0227 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_flir_filters.png}
+\caption{Classical filters applied to the same CycleGAN fog frames shown in
+Figure~\ref{fig:flir-synthesis}. Columns: synthetic fog, gamma correction,
+CLAHE, dark-channel prior, and gamma followed by CLAHE. The filters change the
+global tone but do not recover the scene structure lost to the fog; this matches
+their failure to improve detection in Table~\ref{tab:flir-screen}.}
+\label{fig:flir-filters}
+\end{figure}
+
+\subsection{Main 100-epoch comparison}
+The main comparison uses YOLOv12s and the full 100-epoch budget (early stopping
+after 25 epochs). Two pipelines are compared:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Baseline:} train on clear plus unfiltered CycleGAN fog, detect
+        directly.
+  \item \textbf{Filtered:} train on clear plus U-Net-dehazed fog, detect
+        directly. At deployment, this corresponds to always-on filtering; the
+        gated variant is discussed below.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\caption{FLIR main comparison, YOLOv12s, matched 3,749-frame test set. Each row is
+one training/inference pipeline. Columns: clear and fog mAP@50, clear and fog
+mAP@50--95, and the clear-minus-fog mAP@50--95 gap.}
+\label{tab:flir-main}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Pipeline & Clear mAP@50 & Clear mAP@50--95 & Fog mAP@50 & Fog mAP@50--95 & Gap \\
+\midrule
+Baseline & 0.2849 & 0.1525 & 0.2430 & 0.1266 & 0.0259 \\
+\textbf{Filtered (U-Net)} & \textbf{0.3063} & \textbf{0.1683} & \textbf{0.2856} & \textbf{0.1535} & \textbf{0.0148} \\
+$\Delta$ & $+0.0214$ & $+0.0158$ & $+0.0426$ & $+0.0269$ & $-42.9\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:flir-main} reports the main comparison. The filtered pipeline
+improves fog mAP@50 by 17.5\,\% and fog mAP@50--95 by
+21.3\,\%, and reduces the clear-to-fog gap by 42.9\,\%. It also improves the
+\emph{clear} score, so the gain is not a clear-versus-fog trade-off. Both
+pipelines early-stopped: the baseline at epoch 55 (best epoch 30) and the
+filtered model at epoch 57 (best epoch 32).
+
+\subsection{Does the dehazer transfer across generators?}
+A 40-epoch YOLOv8s study trained the U-Net on CycleGAN fog and tested it on
+CycleDiff-75 fog. It hurts: fog mAP@50--95 falls from 0.1619 to 0.1511 and clear
+from 0.1664 to 0.1593. Retraining the U-Net on CycleDiff-75 pairs improves the
+result (clear 0.1638, fog 0.1560) but still leaves it below the unfiltered
+baseline (0.1664 / 0.1619). The reconstruction objective is therefore not
+aligned with detection, even when the generator matches.
+
+\subsection{Always-on filtering versus gated inference}
+The gate was evaluated as a routing mechanism. On the generator it was trained
+on (CycleGAN) it separates fog from clear almost perfectly; on the other
+generator (CycleDiff-75) it misses 33.9\,\% of fog frames (Table~\ref{tab:gate}).
+
+\begin{table}[H]
+\centering
+\small
+\caption{Gate performance on the test sets. Each row is one test condition.
+Columns: accuracy, F1, false-negative rate (fraction of fog frames routed as
+clear) and false-positive rate (fraction of clear frames routed as fog).}
+\label{tab:gate}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Test set & Accuracy & F1 & FNR (fog$\rightarrow$clear) & FPR (clear$\rightarrow$fog) \\
+\midrule
+Clear test set                  & 0.9141 & 0.0000 & 0.000 & 0.086 \\
+Fog test set (CycleGAN)         & 1.0000 & 1.0000 & 0.000 & 0.000 \\
+Fog test set (CycleDiff-75)     & 0.6612 & 0.7961 & 0.339 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A 40-epoch comparison of routing strategies gives:
+\begin{itemize}[leftmargin=1.4em]
+  \item always-on U-Net: clear mAP@50--95 0.1592, fog 0.1510;
+  \item gated U-Net: clear 0.1518, fog 0.1433;
+  \item unfiltered baseline: clear 0.1464, fog 0.1234.
+\end{itemize}
+On this budget always-on filtering scores higher than gating. The comparison
+is indicative rather than controlled, however: the always-on arm uses a YOLOv8s
+detector and the gated arm a YOLOv12s detector, so detector capacity is
+confounded with the routing strategy. The controlled comparison in this report
+is the matched 100-epoch baseline-versus-filter table, which holds the detector
+fixed. Gating remains an efficiency technique: it avoids the filter cost on
+clear frames, but it does not improve accuracy and it can hurt when the gate
+misclassifies.
+
+\subsection{Ablations}
+Training on clear data only and evaluating on fog confirms that the synthetic
+weather is a real distribution shift: clear-only training reaches 0.1540 on
+clear frames but only 0.0925 on CycleGAN fog and 0.1294 on CycleDiff-75 fog.
+Training on fog only reaches 0.1313 (CycleGAN) and 0.1616 (CycleDiff-75) on fog.
+The mixed pipelines are the best compromise.
+
+
+%======================================================================
+\section{FLIR ADAS v2: additional adverse conditions}
+\label{sec:flir-adverse}
+
+\subsection{Question}
+The fog experiments above leave open whether the result is specific to fog, and
+whether the detector is fragile to other thermal degradations. We therefore
+screened eight further conditions on the same 3,749 matched frames, and
+retrained only on conditions that actually hurt a clear-trained detector. This
+is a different question from ``can a generator produce this weather?'': it asks
+first whether the condition creates a measurable detection gap, and only then
+whether adding it to training closes that gap.
+
+\subsection{Conditions and protocol}
+The conditions fall into two families. Fog (including mist and high-humidity
+variants), rain, snow, thermal crossover and sensor degradation have a physical
+approximation and could in principle be learned by a translation network. Small
+targets, defocus and static obstruction alter geometry or sharp optical
+properties, so they are generated directly: a translation network would
+hallucinate structure rather than apply the required transform.
+Figure~\ref{fig:07-conditions} shows one frame per condition.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_07_conditions.png}
+\caption{One FLIR test frame (000745) under the clear source and the eight
+additional conditions at medium severity. Green boxes are the shared ground
+truth. The conditions are, left to right and top to bottom: fog, rain, snow,
+thermal crossover, sensor/dirty lens, small target, defocus and static
+obstruction.}
+\label{fig:07-conditions}
+\end{figure}
+
+The protocol is staged so that compute is not spent retraining on conditions the
+detector already handles:
+\begin{enumerate}[leftmargin=1.4em]
+  \item Train \textbf{CM}, a YOLOv12s, on the 9,051 clear training frames
+        (\textbf{C\_Tr}) with the same recipe used elsewhere in this report
+        (40 epochs maximum, patience 10, batch 16, image size 640, seed 0).
+  \item Evaluate CM on the clear test set \textbf{C\_T} and on each transformed
+        test set \textbf{A\_T}. The screen statistic is the relative drop
+        $(\mathrm{mAP}_{C_T} - \mathrm{mAP}_{A_T}) / \mathrm{mAP}_{C_T}$ in
+        mAP@50--95.
+  \item If the drop exceeds 5\,\%, generate the transformed training set
+        \textbf{A\_Tr}, train \textbf{Mix\_M} on C\_Tr + A\_Tr (18,102 frames),
+        and evaluate it on both C\_T and A\_T. The remaining gap is
+        $\mathrm{Mix}(C_T) - \mathrm{Mix}(A_T)$, always clear minus adverse.
+\end{enumerate}
+Every evaluation uses exactly the same 3,749 frame indices and labels.
+CM reaches mAP@50--95 $= 0.14966$ and mAP@50 $= 0.27546$ on C\_T.
+
+\paragraph{Notation for Tables~\ref{tab:07-screen} and~\ref{tab:07-retrain}.}
+\textbf{CM} (also written $C_M$) is the clear-trained YOLOv12s;
+\textbf{Mix\_M} is the model trained on the mix of clear and
+adversarial-condition images; \textbf{C\_T} is the 3,749-frame clear test set;
+and \textbf{A\_T} is the same frames transformed into the adversarial condition.
+\textbf{C\_Tr} and \textbf{A\_Tr} denote the corresponding training sets.
+
+Table~\ref{tab:07-screen} reports the screen. Five conditions cross the 5\,\%
+threshold: snow, sensor degradation, small targets, defocus and static
+obstruction. Fog (2.14\,\%), rain (2.97\,\%) and thermal crossover (4.44\,\%)
+fall below it and are not retrained under this protocol; they are recorded as
+\emph{not selected}, not as harmless. The physical fog here is a
+uniform-transmission veil and is milder than the CycleGAN fog of
+Section~\ref{sec:flir}, so the below-threshold fog result is specific to this
+implementation and severity.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{Screen of the clear-trained YOLOv12s CM on the eight conditions
+(3,749 frames each, mAP@50--95). The relative drop is
+$(\mathrm{CM}_{C_T} - \mathrm{CM}_{A_T}) / \mathrm{CM}_{C_T}$. ``Selected''
+means the condition is retrained in Table~\ref{tab:07-retrain}.}
+\label{tab:07-screen}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Condition & CM C\_T & CM A\_T & Absolute drop & Relative drop & Selected \\
+\midrule
+Fog               & 0.14966 & 0.14645 & 0.00321 & 2.14\,\%  & no \\
+Rain              & 0.14966 & 0.14521 & 0.00445 & 2.97\,\%  & no \\
+Snow              & 0.14966 & 0.12652 & 0.02314 & 15.46\,\% & yes \\
+Thermal crossover & 0.14966 & 0.14301 & 0.00665 & 4.44\,\%  & no \\
+Sensor/dirty lens & 0.14966 & 0.09470 & 0.05496 & 36.72\,\% & yes \\
+Small target      & 0.14966 & 0.12675 & 0.02291 & 15.31\,\% & yes \\
+Defocus           & 0.14966 & 0.05373 & 0.09593 & 64.10\,\% & yes \\
+Static obstruction& 0.14966 & 0.11775 & 0.03191 & 21.32\,\% & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Retraining the selected conditions}
+Table~\ref{tab:07-retrain} reports the mixed models. Snow, sensor degradation,
+defocus and static obstruction all reduce the gap substantially while keeping
+clear accuracy close to CM. Snow and sensor degradation also improve clear
+accuracy. Defocus and obstruction give up less than 0.003 clear mAP while
+recovering 0.047 and 0.018 adverse mAP respectively.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{Retrained models on the selected conditions (mAP@50--95, 3,749
+frames). ``Mix gap'' is clear minus adverse. The small-target model produces a
+\emph{negative} gap: it is better on A\_T than on C\_T.}
+\label{tab:07-retrain}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Condition & Mix C\_T & Mix A\_T & Mix gap & CM gap & $\Delta$ clear \\
+\midrule
+Snow               & 0.16306 & 0.15806 & 0.0050  & 0.0231 & $+0.0134$ \\
+Sensor/dirty lens  & 0.15057 & 0.12825 & 0.0223  & 0.0550 & $+0.0009$ \\
+Small target       & 0.14323 & 0.37717 & $-0.2339$ & 0.0229 & $-0.0064$ \\
+Defocus            & 0.14706 & 0.10070 & 0.0464  & 0.0959 & $-0.0026$ \\
+Static obstruction & 0.14796 & 0.13521 & 0.0128  & 0.0319 & $-0.0017$ \\
+\midrule
+Fog, rain, thermal crossover & --- & --- & --- & --- & not selected \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_07_pairs.png}
+\caption{Source (top) and generated (bottom) frames for four selected
+conditions. Sensor degradation adds fixed-pattern noise, drift, vignetting and
+dirty-lens smudges; static obstruction is an alpha-blended fence/foliage mask;
+small-target pixelation is applied only inside the labelled boxes; defocus is a
+Gaussian point-spread convolution.}
+\label{fig:07-pairs}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_07_results.png}
+\caption{Left: relative mAP@50--95 drop of the clear-trained CM on each
+condition; the dashed line is the 5\,\% screening threshold. Right: remaining
+clear-minus-adverse gap for the retrained models (lower is better). Small
+targets are the exception: the 8$\times$8 pixelation is a strong learnable cue,
+so the mixed model is better on A\_T than on C\_T and the gap is negative.}
+\label{fig:07-results}
+\end{figure}
+
+\subsection{The small-target result is a domain cue, not a label error}
+The small-target mixed model reaches 0.3772 on A\_T but only 0.1432 on C\_T.
+This is not a split leak: the clear and small-target test labels are identical
+(3,749 files, 61,596 instances, the same nine classes). Reducing each target
+crop to 8$\times$8 pixels and upsampling it creates blocky, high-contrast
+targets that the detector can learn to exploit; on clear frames that cue is
+absent, and clear mAP falls slightly ($-0.0064$). The result should therefore
+be read as a warning about pixelation as a simulation, not as evidence that
+small targets are easy.
+
+\subsection{Incident and caveats}
+The first sensor mixed-training attempt was killed by the scheduler
+(SIGKILL, return code $-9$) after about two minutes while the dataloader was
+caching 18,102 images in RAM under the 48\,GB allocation. It was retried with
+on-the-fly decoding (no RAM cache) and 12 workers, and the completed run is the
+one reported above. No condition is blocked.
+
+These results use one seed and one severity (medium) per condition. The
+conditions are simulations on 8-bit thermal JPEGs: FLIR has no real weather, no
+depth and no radiometric temperature. Fog uses a uniform transmission by
+default; crossover uses the local box-ring background as a proxy for a
+sun-heated scene; obstruction is procedural unless real masks are supplied. A
+severity sweep and a second seed are the obvious next steps.
+
+
+%======================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{The measured weather gap depends on the protocol.}
+On UNIRI-TID, mixed-weather training reduces the clear-to-fog APm gap to 0.094.
+On FLIR, comparing 1,200 clear frames with 3,749 fog frames suggested a gap of
+about 0.18, but matching the frames reduced it to 0.022. Any claim about weather
+robustness must therefore state the evaluation protocol, and matched frames are
+the minimum requirement.
+
+\paragraph{Synthetic weather is learnable, but not all synthetic weather is equally useful.}
+On M3FD, deterministic fog is essentially free after mixed training (gap
+$-0.001$), whereas learned CycleGAN fog retains a 0.049 gap. The detector can
+learn a fixed transform; it struggles with a transform whose texture and contrast
+vary with the generator.
+
+\paragraph{Only the learned filter helps, and only on the generator it was trained for.}
+On FLIR, gamma, CLAHE and DCP do not improve detection, while the U-Net dehazer
+does. The improvement is large enough to survive the stricter 100-epoch
+comparison (+21.3\,\% fog mAP@50--95), and it also improves clear images. The
+filter nevertheless fails to transfer to a different generator, and even
+target-generator retraining does not beat the unfiltered baseline. This suggests
+that reconstruction-based dehazing optimises the wrong objective for detection:
+a visually cleaner image is not necessarily a more detectable one.
+
+\paragraph{Gating is an efficiency technique.}
+The gate is accurate on the generator it saw but misses a third of the fog frames
+from a different generator. On the same 40-epoch budget, always-on filtering
+scores higher than gated filtering, but the two arms use different detector
+sizes (YOLOv8s versus YOLOv12s), so the comparison is indicative and not
+controlled. The case for gating is therefore computational (the filter is
+skipped on clear frames) rather than a demonstrated accuracy gain. We did not
+record a latency benchmark, so the efficiency claim also remains qualitative in
+this report.
+
+%======================================================================
+\section{Limitations and open work}
+\label{sec:limitations}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Synthetic fog.} FLIR has no real fog, so the FLIR conclusions are
+        a proof of concept on generated weather, not a real-weather claim. UNIRI-TID
+        is the only real-weather dataset, and its fog test set is small.
+  \item \textbf{Single seed.} Every arm uses one random seed; no variance or
+        confidence interval is reported.
+  \item \textbf{Early stopping.} ``100 epochs'' means up to 100 with early
+        stopping after 25 epochs without improvement. The effective budgets are
+        55--65 epochs for the main arms.
+  \item \textbf{Incomplete arm.} The filtered CycleDiff-75 pipeline stopped at
+        epoch 27 of 100 and is not reported as a completed result.
+  \item \textbf{Translation metrics.} PSNR, SSIM and LPIPS measure deviation from
+        the clear source; no FID or human realism study was performed.
+  \item \textbf{Invalid baseline.} The RT-DETR-l run on UNIRI-TID is invalid
+        (29 epochs) and must not be quoted as a baseline.
+  \item \textbf{Missing M3FD 3B data.} The Protocol-3B training images for M3FD
+        are not shipped with the project; the result files are preserved, and the
+        data can be regenerated from the split and synthetic-depth trees.
+  \item \textbf{Real-time cost.} No latency or throughput measurements were
+        recorded; the gating efficiency argument is therefore qualitative.
+  \item \textbf{Additional-condition sweep.} The eight-condition extension uses
+        one severity (medium) and one seed per condition. Fog, rain and thermal
+        crossover fall below the 5\,\% screen at this severity; that is not
+        evidence that the real weather is harmless. The physical fog is a
+        uniform-transmission veil and is milder than the CycleGAN fog used in
+        Section~\ref{sec:flir}.
+  \item \textbf{Small-target cue.} Pixelating target crops to 8$\times$8
+        pixels makes them blocky and more detectable, not merely smaller. The
+        negative gap of the small-target mixed model is a property of this
+        simulation, not a claim that small targets are easy.
+\end{itemize}
+
+%======================================================================
+\section{Reproducibility}
+\label{sec:repro}
+
+\paragraph{Environment.}
+Python 3.11.16, PyTorch 2.14.0 (CUDA 12.6), Ultralytics 8.4.138, NumPy 2.4.6,
+OpenCV 5.0.0, scikit-learn 1.9.0, SciPy 1.17.1, PyYAML 6.0.3, timm 1.0.30 and
+PyTorch Lightning 1.9.3. The full list is in
+\texttt{environment/requirements.txt}. Training assumes one CUDA GPU; the
+commands below must be run inside a Slurm \texttt{salloc} allocation as
+\texttt{srun} steps, because direct \texttt{salloc} children were terminated by
+the cluster after a few minutes.
+
+\paragraph{Main commands.}
+The exact entry points are:
+\begin{verbatim}
+# UNIRI-TID detector bench
+cd experiments/05_detector_bench
+python train_detector.py --model weights/yolov8s.pt \
+    --name v8s --epochs 100 --cache ram
+python eval/detect_eval.py --run v8s --split test
+
+# M3FD
+cd experiments/03_m3fd_weather
+bash scripts/run_all_methods.sh
+
+# FLIR, main comparison (inside an srun step)
+cd experiments/02_flir_gate_ir
+python -m src.build_direct init
+bash scripts/run_main_100.sh
+bash scripts/run_main_100_cyclediff.sh
+\end{verbatim}
+
+\paragraph{Artifacts.}
+Each experiment directory contains its own \texttt{README.md},
+\texttt{results/} (JSON metrics), \texttt{runs/} (weights and training curves) and
+\texttt{logs/}. The consolidated result tables are in
+\path{experiments/02_flir_gate_ir/results/REPORT.md},
+\path{experiments/03_m3fd_weather/results/} and
+\path{experiments/05_detector_bench/results/}. The figures in this report are
+in \path{docs/report/figures/}.
+
+\paragraph{Provenance.}
+Every evaluation JSON stores the weights path and SHA-256 prefix, the dataset
+YAML, the number of images, the split hash and the git state. The numbers in this
+report were read from those files; no experiment was re-executed for the report.
+
+%======================================================================
+\section{Conclusion}
+
+The project set out to test whether a learned enhancement stage makes thermal
+detection robust to adverse weather, and whether gating that stage is worthwhile.
+The evidence supports a nuanced answer. On real weather, mixed training already
+closes most of the gap, so the headroom for a gate is small. On controlled
+synthetic weather, a learned dehazer gives a clear and repeatable improvement on
+the generator it was trained for (fog mAP@50 +17.5\,\%, gap $-43$\,\%), while
+classical filters fail and cross-generator transfer fails. In an indicative
+40-epoch comparison always-on filtering outscored gated inference, but the arms
+differed in detector size, so that ranking is not controlled; the gate is
+motivated by computation rather than by a demonstrated accuracy advantage. The most important methodological lesson is that weather robustness
+must be measured on matched frames, because mismatched test sets can turn a
+0.02 gap into an apparent 0.18 gap.
+
+A second lesson is that not every simulated adverse condition is a robustness
+problem. Of eight additional FLIR conditions, five crossed a 5\,\% screen; mixed
+training then closed 52--78\,\% of the gap for snow, sensor degradation, defocus
+and static obstruction. The exceptions are informative: a mild physical fog did
+not hurt the detector, and small-target pixelation created a learnable cue that
+produced a negative gap. Screening conditions before spending compute on
+retraining is therefore both cheaper and more honest than assuming that every
+simulated weather condition is harmful.
+
+%======================================================================
+\appendix
+\section{Result and artifact map}
+Table~\ref{tab:artifacts} lists the files from which the reported numbers and
+figures were taken.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Where the numbers and figures in this report come from. Each row is one
+artifact category; the right column lists the files. Paths are relative to the
+project root.}
+\label{tab:artifacts}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\linewidth}>{\raggedright\arraybackslash}p{0.66\linewidth}@{}}
+\toprule
+Content & Location \\
+\midrule
+UNIRI-TID detector results & \path{experiments/05_detector_bench/results/eval_*_test.json} \\
+M3FD method results & \path{experiments/03_m3fd_weather/method1_classical/}, \path{method2_depth/}, \path{method3_cyclegan/} \\
+M3FD detector results & \path{experiments/03_m3fd_weather/results/*.json} \\
+FLIR filter screen & \path{experiments/02_flir_gate_ir/results/*_60_*.json} \\
+FLIR main 100-epoch results & \path{experiments/02_flir_gate_ir/results/*_100_*_vtt.json} \\
+FLIR consolidated tables & \path{experiments/02_flir_gate_ir/results/REPORT.md} \\
+Gate metrics & \path{experiments/02_flir_gate_ir/results/gate_cyclegan.json} \\
+Translation metrics & \path{experiments/01_flir_weather_translation/method4_cyclediff/logs/} \\
+Additional FLIR condition screen & \path{experiments/07_flir_adverse_conditions/results/eval_CM_*.json} \\
+Additional FLIR retraining (evals) & \path{experiments/07_flir_adverse_conditions/results/eval_Mix_*.json} \\
+Additional FLIR retraining (runs) & \path{experiments/07_flir_adverse_conditions/runs/Mix_*_yolo12s/} \\
+Additional FLIR condition report & \path{experiments/07_flir_adverse_conditions/results/FINAL_REPORT.md} \\
+Additional condition generation & \path{experiments/07_flir_adverse_conditions/data/generated/*/medium/generation.json} \\
+Report figures & \path{docs/report/figures/} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{thebibliography}{9}
+\bibitem{uniri} K.~Kristo et al., ``Thermal imaging dataset for person detection''
+(UNIRI-TID), 2020.
+\bibitem{m3fd} J.~Liu et al., ``Target-aware dual adversarial learning and a
+multi-scenario multi-modality benchmark to fuse infrared and visible for object
+detection'' (M3FD), CVPR 2022.
+\bibitem{flir} Teledyne FLIR, ``FLIR ADAS v2 thermal dataset,'' public release.
+\bibitem{cyclegan} J.-Y.~Zhu, T.~Park, P.~Isola and A.~A.~Efros, ``Unpaired
+image-to-image translation using cycle-consistent adversarial networks,''
+ICCV 2017.
+\bibitem{cyclediff} CycleDiff: cycle-consistent diffusion for unpaired
+image-to-image translation, arXiv:2508.06625.
+\bibitem{clahe} K.~Zuiderveld, ``Contrast limited adaptive histogram
+equalization,'' Graphics Gems IV, 1994.
+\bibitem{dcp} K.~He, J.~Sun and X.~Tang, ``Single image haze removal using
+dark channel prior,'' CVPR 2009.
+\bibitem{yolo} Ultralytics, YOLOv8/YOLOv12 documentation and implementation.
+\end{thebibliography}
+
+\end{document}

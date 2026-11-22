@@ -1,0 +1,10 @@
+path: /home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/data/flir3/drop/ir
+train: images/train
+val: images/val
+test: images/test
+
+nc: 3
+names:
+  0: person
+  1: car
+  2: bicycle

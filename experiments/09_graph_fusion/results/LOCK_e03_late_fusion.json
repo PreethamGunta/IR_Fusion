@@ -1,0 +1,11 @@
+{
+ "experiment": "e03_late_fusion",
+ "config": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/results/e03_config.json",
+ "config_sha256": "64d0154decde0b1f9c0dc31594ab751936d82b2fd66bc644326fec4c1c3685b7",
+ "checkpoint": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/runs/e00_ir/weights/best.pt",
+ "checkpoint_sha256": "a5645f73fc95b67a94268e00bf7680f3541dcdb60ef9ff46ea371bb29f493850",
+ "selection_split": "val",
+ "selection_metric": "AP50-95",
+ "val_metric": 0.58833,
+ "timestamp": "2026-11-22T00:58:18Z"
+}

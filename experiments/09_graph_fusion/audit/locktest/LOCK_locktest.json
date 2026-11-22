@@ -1,0 +1,11 @@
+{
+ "experiment": "locktest",
+ "config": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/audit/locktest/config.yaml",
+ "config_sha256": "0e4b08fa681c8da2a5973dfbabe13927138e6442398a403a670ad2bf0ad8cb90",
+ "checkpoint": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/audit/locktest/ckpt.pt",
+ "checkpoint_sha256": "b5a2c96250612366ea272ffac6d9744aaf4b45aacd96aa7cfcb931ee3b558259",
+ "selection_split": "val",
+ "selection_metric": "AP50-95",
+ "val_metric": 0.5,
+ "timestamp": "2026-11-21T14:17:48Z"
+}

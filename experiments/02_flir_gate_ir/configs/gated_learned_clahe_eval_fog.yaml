@@ -1,0 +1,23 @@
+path: /home2/home/preetham_g/gate_ir_release/experiments/02_flir_gate_ir/data/gated_learned_clahe
+train:
+- images/train_clear
+- images/train_fog
+val: images/val
+test: images/test_fog
+nc: 15
+names:
+- person
+- bike
+- car
+- motor
+- bus
+- train
+- truck
+- light
+- hydrant
+- sign
+- face
+- other_vehicle
+- backpack
+- bag
+- other

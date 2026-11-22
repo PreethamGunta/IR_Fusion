@@ -1,0 +1,16 @@
+{
+ "phase": "0.6",
+ "measured_utc": "2026-11-21T16:17:00Z",
+ "setup": "two concurrent YOLO12s runs (e00_ir, e01_rgb) sharing GPU0 in one srun step of allocation 10133; batch 16, imgsz 640, seed 0, workers 8 each",
+ "epoch_time_min_concurrent_each": 4.0,
+ "iters_per_epoch": 1123,
+ "gpu_mem_gib_per_run": 7.8,
+ "params": 9255071,
+ "layers": 272,
+ "early_val_ap5095": {
+  "e00_ir_epoch3": 0.37693,
+  "e01_rgb_epoch3": 0.32015
+ },
+ "plateau_epoch": null,
+ "notes": "Timing folded into the real E00/E01 runs per EXPERIMENT_PLAN.md sec 4; no separate smoke pass. Worst case 100 epochs = ~6.7 h per run; patience 30 expected to stop earlier. plateau_epoch to be filled from the patience stop of these runs. sigma_seed NOT measured (single-seed minimal pass; substitute rule in plan sec 5.4)."
+}

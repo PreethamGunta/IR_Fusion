@@ -1,0 +1,18 @@
+{
+  "name": "b1_cyclegan_clear_vtt",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/01_flir_weather_translation/runs/3a_cyclegan_fog-3/weights/best.pt",
+  "weights_sha256": "7545f7646b80e2b1",
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/02_flir_gate_ir/configs/b1_eval_clear.yaml",
+  "split": "test",
+  "n_images": 3749,
+  "imgsz": 640,
+  "mAP50_95": 0.16686,
+  "mAP50": 0.30548,
+  "precision": 0.42152,
+  "recall": 0.31926,
+  "git_commit": "6a5f15b",
+  "slurm_job_id": "9639",
+  "hostname": "ub",
+  "platform": "Linux-5.15.0-198-generic-x86_64-with-glibc2.35",
+  "timestamp_utc": "2026-11-04T20:54:00.111717+00:00"
+}

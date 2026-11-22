@@ -1,0 +1,22 @@
+{
+ "experiment": "e03_late_fusion",
+ "method": "WBF merge of E00 (IR) + E01 (RGB) exported predictions",
+ "wbf": {
+  "iou_thr": 0.6,
+  "wa": 1.5,
+  "wb": 1.0,
+  "scale_members": true
+ },
+ "ir_source": {
+  "run": "e00_ir",
+  "checkpoint": "runs/e00_ir/weights/best.pt",
+  "sha256": "a5645f73fc95b67a94268e00bf7680f3541dcdb60ef9ff46ea371bb29f493850"
+ },
+ "rgb_source": {
+  "run": "e01_rgb",
+  "checkpoint": "runs/e01_rgb/weights/best.pt",
+  "sha256": "c3ef8b55fe90c76465efae67b1fe185ddbc38db9aaf64b41aefa417849199196"
+ },
+ "selection": "VAL only (12-config grid); best val AP 0.58833 vs E00 0.58757",
+ "timestamp": "2026-11-22T00:58:18Z"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "3a_cyclegan_fog_adv",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/01_flir_weather_translation/runs/3a_cyclegan_fog-3/weights/best.pt",
+  "weights_sha256": "7545f7646b80e2b1",
+  "data": "/home2/home/preetham_g/gate_ir_release/data/flir_adas_v2/synthetic/cyclegan/fog/synthetic_fog.yaml",
+  "split": "test",
+  "split_hash": null,
+  "n_images": 3749,
+  "imgsz": 640,
+  "mAP50_95": 0.14448,
+  "mAP50": 0.27182,
+  "precision": 0.4046,
+  "recall": 0.2819,
+  "per_class_AP": {},
+  "git_commit": "efd97a1",
+  "git_dirty": true,
+  "slurm_job_id": "9388",
+  "hostname": "ub"
+}

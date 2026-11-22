@@ -1,0 +1,30 @@
+{
+ "AP": 0.22514167947321012,
+ "AP50": 0.4666894509169835,
+ "AP75": 0.1887537589056302,
+ "APs": 0.1266749476884363,
+ "APm": 0.2751303771101938,
+ "APl": 0.45846642939688487,
+ "per_class_AP": {
+  "person": 0.2592612675172989,
+  "bicycle": 0.18103301616714204,
+  "car": 0.45979148779810036,
+  "dog": 0.0004809464102991708
+ },
+ "ECE": 0.07608868000893484,
+ "Brier": 0.09497445349886678,
+ "n": 16534,
+ "params": 9254684,
+ "latency_ms": 118.69307812768966,
+ "fps": 8.425091132308516,
+ "name": "audit_rgb_teacher_test",
+ "weights": "/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/rgb_teacher/weights/best.pt",
+ "weights_sha256": "5995b068db203513fcc14348b54ee1b6ae2cd79ee8c3f99ee6f4fc36a96aa99c",
+ "data": "configs/rgb.yaml",
+ "split": "test",
+ "n_images": 609,
+ "n_annotations": 4957,
+ "split_hash": "cbe1b8bd5230a266",
+ "paired": false,
+ "imgsz": 640
+}

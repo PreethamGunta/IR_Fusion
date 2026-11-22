@@ -1,0 +1,18 @@
+{
+  "name": "CM_defocus",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/runs/CM_clear_yolo12s/weights/best.pt",
+  "weights_sha256": "dce6fa843354e031",
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b0_defocus_medium_train.yaml",
+  "split": "test",
+  "n_images": 3749,
+  "imgsz": 640,
+  "mAP50_95": 0.05373,
+  "mAP50": 0.11944,
+  "precision": 0.27172,
+  "recall": 0.11961,
+  "elapsed_seconds": 16.0,
+  "timestamp_utc": "2026-11-11T18:33:38.938892+00:00",
+  "hostname": "ub",
+  "platform": "Linux-5.15.0-198-generic-x86_64-with-glibc2.35",
+  "slurm_job_id": "9760"
+}

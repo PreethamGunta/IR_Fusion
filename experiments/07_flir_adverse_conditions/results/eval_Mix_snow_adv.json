@@ -1,0 +1,18 @@
+{
+  "name": "Mix_snow_adv",
+  "weights": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/runs/Mix_snow_yolo12s/weights/best.pt",
+  "weights_sha256": "5364a1d273824dc2",
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b1_snow_medium_eval_snow.yaml",
+  "split": "test",
+  "n_images": 3749,
+  "imgsz": 640,
+  "mAP50_95": 0.15806,
+  "mAP50": 0.29591,
+  "precision": 0.42592,
+  "recall": 0.28772,
+  "elapsed_seconds": 38.0,
+  "timestamp_utc": "2026-11-11T19:33:55.782998+00:00",
+  "hostname": "ub",
+  "platform": "Linux-5.15.0-198-generic-x86_64-with-glibc2.35",
+  "slurm_job_id": "9760"
+}

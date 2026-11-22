@@ -1,0 +1,108 @@
+# GATE-IR release .gitignore
+# Rule of thumb: commit code, configs, docs and small evidence (metrics,
+# locks, audit JSONs). Never commit datasets, runs, weights, predictions,
+# GT dumps, caches or nested repositories.
+
+# ---- datasets ----
+data/
+experiments/*/data/
+
+# ---- training outputs ----
+experiments/*/runs/
+experiments/*/logs/
+logs/
+experiments/*/method4_cyclediff/results/
+experiments/*/method4_cyclediff/sample_results/
+experiments/*/sample_results/
+experiments/*/method3_cyclegan/translated/
+experiments/*/method3_cyclegan/runs/
+models/pretrained/
+results/figures/
+
+# ---- figures / contact sheets (kept out of git; regenerate from runs) ----
+experiments/*/figures/
+experiments/*/contact_sheets/
+experiments/*/results/contact_sheets/
+**/contact_sheets/
+docs/report/figures/
+
+# ---- derived prediction / ground-truth / audit dumps ----
+experiments/*/results/preds/
+experiments/*/results/gt/
+experiments/*/audit/preds/
+experiments/*/audit/*_labelr_*/
+experiments/*/archive/
+
+# ---- weights and binary model material ----
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.onnx
+*.engine
+*.trt
+*.safetensors
+*.h5
+*.npy
+*.npz
+*.gguf
+*.bin
+
+# ---- downloads / archives / caches ----
+*.part
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+.cache/
+**/.cache/
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+wandb/
+lightning_logs/
+*.egg-info/
+.ultralytics/
+__pycache__/
+*.pyc
+
+# ---- media (future-proofing; none tracked today) ----
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wav
+*.flac
+
+# ---- environments ----
+.venv/
+venv/
+env/
+
+# ---- secrets / credentials (defensive; none found in this tree) ----
+.env
+.env.*
+*token*
+.netrc
+*.pem
+*.key
+*.p12
+
+# ---- editor / OS noise ----
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+*.log
+
+# ---- nested repositories (SHAs recorded in PROVENANCE.md) ----
+experiments/06_gate_ir_scaffolding/
+experiments/*/external/
+
+# ---- agent tooling / scratch ----
+.opencode/
+scratch/

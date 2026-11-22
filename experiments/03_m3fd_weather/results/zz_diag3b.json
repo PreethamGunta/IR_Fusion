@@ -1,0 +1,46 @@
+{
+  "name": "zz_diag3b",
+  "model": "weights/yolo12s.pt",
+  "epochs": 1,
+  "imgsz": 640,
+  "batch": 8,
+  "workers": 14,
+  "seed": 0,
+  "weather_aug": false,
+  "debug": false,
+  "resumed": null,
+  "optimizer": "AdamW",
+  "lr0": 0.001,
+  "cos_lr": true,
+  "patience": 25,
+  "epochs_trained": 1,
+  "early_stopped": true,
+  "best_epoch": 2,
+  "train_seconds": 93.2,
+  "data": "m3fd_experiments/data/3b_fog_heavy/m3fd_3b.yaml",
+  "split_hash": "effb9b3090ad2fcb",
+  "n_images": {
+    "train": 5040,
+    "val": 480,
+    "test": 600
+  },
+  "weights_path": "/home2/home/preetham_g/gate_ir_release/experiments/03_m3fd_weather/runs/zz_diag3b/weights/best.pt",
+  "weights_sha256": "2b4b54bb3651e0e7",
+  "metrics": {
+    "val": {
+      "mAP50": 0.14217,
+      "mAP50_95": 0.07779,
+      "precision": 0.42965,
+      "recall": 0.13408
+    },
+    "test": {
+      "mAP50": 0.1362,
+      "mAP50_95": 0.06363,
+      "precision": 0.40228,
+      "recall": 0.17604
+    }
+  },
+  "git_commit": "cdc6109",
+  "git_dirty": true,
+  "hostname": "ub"
+}

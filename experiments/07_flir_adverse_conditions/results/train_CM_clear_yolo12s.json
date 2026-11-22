@@ -1,0 +1,20 @@
+{
+  "name": "CM_clear_yolo12s",
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/configs/b0_clear_train.yaml",
+  "weights": "/home2/home/preetham_g/gate_ir_release/models/pretrained/yolo12s.pt",
+  "weights_sha256": "e915c2c4286e3f6f",
+  "epochs": 40,
+  "patience": 10,
+  "batch": 16,
+  "imgsz": 640,
+  "seed": 0,
+  "epochs_done": 40,
+  "best_epoch": 37,
+  "run_dir": "/home2/home/preetham_g/gate_ir_release/experiments/07_flir_adverse_conditions/runs/CM_clear_yolo12s",
+  "elapsed_seconds": 2175.0,
+  "timestamp_utc": "2026-11-11T18:31:22.343675+00:00",
+  "hostname": "ub",
+  "platform": "Linux-5.15.0-198-generic-x86_64-with-glibc2.35",
+  "slurm_job_id": "9760",
+  "git_commit": null
+}

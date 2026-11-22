@@ -1,0 +1,196 @@
+{
+  "schema_version": 2,
+  "args": {
+    "chunk_size": 240,
+    "drop_frames": 120,
+    "val_pct": 0.1,
+    "test_pct": 0.2,
+    "seed": 42,
+    "num_trials": 4000,
+    "dry_run": false,
+    "leak_iou": 0.7,
+    "leak_window": 240,
+    "max_contamination": 0.1,
+    "max_extra_lag": 120,
+    "max_attempts": 3,
+    "attempts": 1
+  },
+  "chunk_size": 240,
+  "splits": {
+    "train": {
+      "chunks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        17
+      ],
+      "frames": 2520,
+      "frame_pct": 75.0,
+      "classes": {
+        "0": 8200,
+        "1": 9567,
+        "3": 1552,
+        "2": 476,
+        "4": 258,
+        "5": 742
+      }
+    },
+    "val": {
+      "chunks": [
+        5,
+        15
+      ],
+      "frames": 240,
+      "frame_pct": 7.14,
+      "classes": {
+        "1": 944,
+        "5": 11,
+        "3": 171,
+        "0": 734,
+        "2": 48,
+        "4": 33
+      }
+    },
+    "test": {
+      "chunks": [
+        6,
+        13,
+        14,
+        16
+      ],
+      "frames": 600,
+      "frame_pct": 17.86,
+      "classes": {
+        "0": 902,
+        "1": 3804,
+        "4": 125,
+        "2": 115,
+        "5": 101,
+        "3": 393
+      }
+    }
+  },
+  "frames_kept": 3360,
+  "frames_available": 4200,
+  "min_cross_split_gap_frames": 121,
+  "boundary_leakage": {
+    "contamination": {
+      "iou_threshold": 0.7,
+      "window_frames": 240,
+      "per_split": {
+        "val": {
+          "frames": 240,
+          "contaminated": 5,
+          "fraction": 0.0208
+        },
+        "test": {
+          "frames": 600,
+          "contaminated": 54,
+          "fraction": 0.09
+        }
+      },
+      "eval_frames": 840,
+      "contaminated_frames": 59,
+      "fraction": 0.0702
+    },
+    "worst_pair_iou": 0.9219,
+    "n_boundary_pairs_iou_gt_0.3": 3876,
+    "boundaries_checked": 7,
+    "details": [
+      {
+        "transition": "train|val",
+        "boundary": "01139|01260",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.7764,
+        "class": "Car",
+        "pair": {
+          "left": "01093",
+          "right": "01285",
+          "lag": 26
+        }
+      },
+      {
+        "transition": "val|test",
+        "boundary": "01379|01500",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.5229,
+        "class": "People",
+        "pair": {
+          "left": "01324",
+          "right": "01527",
+          "lag": 28
+        }
+      },
+      {
+        "transition": "test|train",
+        "boundary": "01619|01740",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.6116,
+        "class": "People",
+        "pair": {
+          "left": "01568",
+          "right": "01853",
+          "lag": 114
+        }
+      },
+      {
+        "transition": "train|test",
+        "boundary": "03059|03180",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.8639,
+        "class": "Car",
+        "pair": {
+          "left": "03053",
+          "right": "03228",
+          "lag": 49
+        }
+      },
+      {
+        "transition": "test|val",
+        "boundary": "03539|03660",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.9219,
+        "class": "Truck",
+        "pair": {
+          "left": "03493",
+          "right": "03662",
+          "lag": 3
+        }
+      },
+      {
+        "transition": "val|test",
+        "boundary": "03779|03900",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.7957,
+        "class": "Car",
+        "pair": {
+          "left": "03743",
+          "right": "03951",
+          "lag": 52
+        }
+      },
+      {
+        "transition": "test|train",
+        "boundary": "04019|04140",
+        "gap_frames": 121,
+        "max_iou_over_window": 0.89,
+        "class": "People",
+        "pair": {
+          "left": "03999",
+          "right": "04193",
+          "lag": 54
+        }
+      }
+    ],
+    "note": "M3FD IR is a single continuous drive; a persistent object can reappear across any gap, so this is a measured budget, not a zero. Read contamination."
+  },
+  "split_hash": "effb9b3090ad2fcb"
+}

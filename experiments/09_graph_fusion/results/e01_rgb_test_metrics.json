@@ -1,0 +1,43 @@
+{
+ "AP": 0.4126444830803385,
+ "AP50": 0.6533743756434229,
+ "AP75": 0.45111357527135176,
+ "APs": 0.134750397392799,
+ "APm": 0.4131542998685912,
+ "APl": 0.4338045870914754,
+ "AR1": 0.14973053279361007,
+ "AR10": 0.40399404921100074,
+ "AR100": 0.5227583109509858,
+ "per_class_AP": {
+  "car": 0.46200219575457857,
+  "truck": 0.40182621537726154,
+  "bus": 0.6243057798213874,
+  "van": 0.2788119916780028,
+  "freight_car": 0.2962762327704619
+ },
+ "n_images": 8980,
+ "n_annotations": 159613,
+ "n_predictions": 405912,
+ "settings": {
+  "conf": 0.001,
+  "maxDet": 100,
+  "iouType": "bbox"
+ },
+ "experiment": "e01_rgb",
+ "lock": {
+  "experiment": "e01_rgb",
+  "config": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/configs/dronevehicle_v2_rgb.yaml",
+  "config_sha256": "887fae61c23a4fe273ee065ce7eba202922f285c928cee5fc3ee5dd519f73736",
+  "checkpoint": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/runs/e01_rgb/weights/best.pt",
+  "checkpoint_sha256": "c3ef8b55fe90c76465efae67b1fe185ddbc38db9aaf64b41aefa417849199196",
+  "selection_split": "val",
+  "selection_metric": "AP50-95",
+  "val_metric": 0.58822,
+  "timestamp": "2026-11-22T00:10:07Z"
+ },
+ "gt": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/results/gt/dv_v2_ir_test.json",
+ "gt_sha256": "60f902dcb6c80ff3271c90f7a72ac9f6aacc898bf344ac757452620647a5a44b",
+ "preds": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/results/preds/e01_rgb_test.json",
+ "preds_sha256": "328e5a6e67ee8f8461666685cc036a865a6243d9e0e60f8f1db34a21794482ef",
+ "timestamp": "2026-11-22T02:22:28Z"
+}

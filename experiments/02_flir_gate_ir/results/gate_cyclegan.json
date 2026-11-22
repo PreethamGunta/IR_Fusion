@@ -1,0 +1,90 @@
+{
+  "condition": "cyclegan",
+  "seed": 42,
+  "features": [
+    "variance",
+    "min",
+    "max",
+    "entropy",
+    "laplacian_var"
+  ],
+  "train": {
+    "n": 15728,
+    "n_videos": 108
+  },
+  "val": {
+    "name": "val",
+    "n": 1512,
+    "accuracy": 0.9894179894179894,
+    "f1": 0.9895287958115183,
+    "confusion_matrix_labels_0clear_1fog": [
+      [
+        740,
+        16
+      ],
+      [
+        0,
+        756
+      ]
+    ],
+    "false_negative_rate_fog_as_clear": 0.0,
+    "false_positive_rate_clear_as_fog": 0.021164021164021163
+  },
+  "test": {
+    "vtt_clear": {
+      "name": "vtt_clear",
+      "n": 3749,
+      "accuracy": 0.9141104294478528,
+      "f1": 0.0,
+      "confusion_matrix_labels_0clear_1fog": [
+        [
+          3427,
+          322
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "false_negative_rate_fog_as_clear": 0.0,
+      "false_positive_rate_clear_as_fog": 0.08588957055214724
+    },
+    "vtt_fog": {
+      "name": "vtt_fog",
+      "n": 3749,
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "confusion_matrix_labels_0clear_1fog": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3749
+        ]
+      ],
+      "false_negative_rate_fog_as_clear": 0.0,
+      "false_positive_rate_clear_as_fog": 0.0
+    },
+    "vtt_fog_cyclediff75": {
+      "name": "vtt_fog_cyclediff75",
+      "n": 3749,
+      "accuracy": 0.6612429981328354,
+      "f1": 0.796082209377007,
+      "confusion_matrix_labels_0clear_1fog": [
+        [
+          0,
+          0
+        ],
+        [
+          1270,
+          2479
+        ]
+      ],
+      "false_negative_rate_fog_as_clear": 0.33875700186716456,
+      "false_positive_rate_clear_as_fog": 0.0
+    }
+  },
+  "model_path": "/home2/home/preetham_g/gate_ir_release/experiments/02_flir_gate_ir/results/gate_cyclegan.pkl"
+}

@@ -1,0 +1,30 @@
+{
+ "AP": 0.251847976059128,
+ "AP50": 0.495488694325792,
+ "AP75": 0.22059446071270752,
+ "APs": 0.1661512815074339,
+ "APm": 0.298600581129154,
+ "APl": 0.4269461629108396,
+ "per_class_AP": {
+  "person": 0.31738508123752757,
+  "bicycle": 0.18639837331091325,
+  "car": 0.49666412772551055,
+  "dog": 0.006944321962560628
+ },
+ "ECE": 0.12568016297856602,
+ "Brier": 0.09020638729441086,
+ "n": 23448,
+ "params": 2568828,
+ "latency_ms": 62.08299869671464,
+ "fps": 16.107469371528904,
+ "name": "audit_a0_custom_test",
+ "weights": "/home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/runs/a0_gt/weights/best.pt",
+ "weights_sha256": "cf3236e20cbb92db649425acf5fe866987287b28f2c8cd2d9e92f5baf293175d",
+ "data": "../configs/ir.yaml",
+ "split": "test",
+ "n_images": 609,
+ "n_annotations": 4957,
+ "split_hash": "5c8e38f1a18b4d95",
+ "paired": false,
+ "imgsz": 640
+}
