@@ -1,0 +1,54 @@
+{
+ "names": [
+  "person",
+  "car",
+  "bicycle"
+ ],
+ "old2new": {
+  "0": 0,
+  "2": 1,
+  "1": 2
+ },
+ "buffer": 10,
+ "val_blocks": [
+  [
+   3900,
+   4400
+  ],
+  [
+   7000,
+   7120
+  ]
+ ],
+ "frame_counts": {
+  "train": 3752,
+  "val": 365,
+  "test": 1013
+ },
+ "frame_id_overlap": {
+  "train_val": 0,
+  "train_test": 0,
+  "val_test": 0
+ },
+ "shift_stats": {
+  "train": {
+   "n": 3752,
+   "median_abs_dx": 2.0302,
+   "median_abs_dy": 0.7531,
+   "frac_flagged": 0.6303304904051172
+  },
+  "val": {
+   "n": 365,
+   "median_abs_dx": 1.7733,
+   "median_abs_dy": 0.4919,
+   "frac_flagged": 0.38904109589041097
+  },
+  "test": {
+   "n": 1013,
+   "median_abs_dx": 2.0418,
+   "median_abs_dy": 0.6984,
+   "frac_flagged": 0.5153010858835143
+  }
+ },
+ "shift_csv": "audit/flir3_shifts_robust.csv"
+}

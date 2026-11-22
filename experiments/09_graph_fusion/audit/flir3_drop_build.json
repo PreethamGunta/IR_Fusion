@@ -1,0 +1,10 @@
+{
+ "policy": "drop",
+ "splits": {
+  "train": 1387,
+  "val": 223,
+  "test": 1013,
+  "test_clean": 491
+ },
+ "dog_dropped": 45
+}

@@ -1,0 +1,205 @@
+{
+ "classes": [
+  "car",
+  "truck",
+  "bus",
+  "van",
+  "freight_car"
+ ],
+ "border": 100,
+ "splits": {
+  "train": {
+   "frames": 17962,
+   "pairs": 17962,
+   "ir_only": 0,
+   "rgb_only": 0,
+   "ir_boxes": 315826,
+   "rgb_boxes": 286217,
+   "ir_classes": {
+    "car": 269855,
+    "truck": 15816,
+    "freight_car": 11171,
+    "bus": 11295,
+    "van": 7689
+   },
+   "rgb_classes": {
+    "car": 246210,
+    "truck": 13667,
+    "freight_car": 8695,
+    "bus": 10382,
+    "van": 7263
+   },
+   "roundtrip_mismatch": {
+    "ir": 0,
+    "rgb": 0
+   },
+   "parse_stats": {
+    "ir_points_4": 292924,
+    "ir_outside_crop": 44431,
+    "rgb_points_4": 264724,
+    "rgb_outside_crop": 38204,
+    "rgb_points_2": 21495,
+    "ir_points_2": 22904,
+    "ir_no_points": 22,
+    "rgb_no_points": 21,
+    "ir_degenerate": 2,
+    "rgb_degenerate": 2,
+    "ir_unknown_class": 2,
+    "rgb_unknown_class": 3
+   }
+  },
+  "val": {
+   "frames": 1469,
+   "pairs": 1469,
+   "ir_only": 0,
+   "rgb_only": 0,
+   "ir_boxes": 24490,
+   "rgb_boxes": 22462,
+   "ir_classes": {
+    "car": 20588,
+    "freight_car": 918,
+    "bus": 789,
+    "truck": 1470,
+    "van": 725
+   },
+   "rgb_classes": {
+    "freight_car": 710,
+    "car": 18965,
+    "bus": 751,
+    "truck": 1336,
+    "van": 700
+   },
+   "roundtrip_mismatch": {
+    "ir": 0,
+    "rgb": 0
+   },
+   "parse_stats": {
+    "ir_points_4": 23035,
+    "rgb_points_4": 21198,
+    "ir_outside_crop": 3370,
+    "rgb_outside_crop": 2959,
+    "ir_points_2": 1455,
+    "rgb_points_2": 1264,
+    "rgb_no_points": 1
+   }
+  },
+  "test": {
+   "frames": 8980,
+   "pairs": 8980,
+   "ir_only": 0,
+   "rgb_only": 0,
+   "ir_boxes": 159613,
+   "rgb_boxes": 143313,
+   "ir_classes": {
+    "car": 137145,
+    "bus": 4467,
+    "freight_car": 5062,
+    "truck": 8657,
+    "van": 4282
+   },
+   "rgb_classes": {
+    "car": 124112,
+    "bus": 4161,
+    "freight_car": 3978,
+    "truck": 7102,
+    "van": 3960
+   },
+   "roundtrip_mismatch": {
+    "ir": 0,
+    "rgb": 0
+   },
+   "parse_stats": {
+    "ir_points_4": 149975,
+    "ir_outside_crop": 22166,
+    "rgb_points_4": 134915,
+    "rgb_outside_crop": 18896,
+    "ir_points_2": 9641,
+    "rgb_points_2": 8400,
+    "ir_no_points": 16,
+    "rgb_no_points": 15,
+    "ir_degenerate": 3,
+    "rgb_degenerate": 2
+   }
+  }
+ },
+ "missing": {
+  "train": {
+   "ir_images_no_rgb": [
+    "02221",
+    "02222",
+    "02223",
+    "04896",
+    "04897",
+    "04898",
+    "05599",
+    "09013",
+    "09014",
+    "12901",
+    "12902"
+   ],
+   "rgb_images_no_ir": [
+    "04992",
+    "04993",
+    "04994",
+    "05002",
+    "05003",
+    "06464",
+    "06465",
+    "06466",
+    "06467",
+    "14036",
+    "14037",
+    "14038",
+    "14049",
+    "14050",
+    "16010",
+    "16011",
+    "16012"
+   ],
+   "labels_no_ir_image": [
+    "04992",
+    "04993",
+    "04994",
+    "05002",
+    "05003",
+    "06464",
+    "06465",
+    "06466",
+    "06467",
+    "14036",
+    "14037",
+    "14038",
+    "14049",
+    "14050",
+    "16010",
+    "16011",
+    "16012"
+   ],
+   "labels_no_rgb_image": [
+    "02221",
+    "02222",
+    "02223",
+    "04896",
+    "04897",
+    "04898",
+    "05599",
+    "09013",
+    "09014",
+    "12901",
+    "12902"
+   ]
+  },
+  "val": {
+   "ir_images_no_rgb": [],
+   "rgb_images_no_ir": [],
+   "labels_no_ir_image": [],
+   "labels_no_rgb_image": []
+  },
+  "test": {
+   "ir_images_no_rgb": [],
+   "rgb_images_no_ir": [],
+   "labels_no_ir_image": [],
+   "labels_no_rgb_image": []
+  }
+ }
+}

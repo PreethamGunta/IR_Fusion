@@ -1,0 +1,439 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{multirow}
+\usepackage{makecell}
+
+\title{Synthetic Adverse Weather Generation for Thermal Object Detection: Methods 1--3 on M3FD}
+\author{Preetham G.}
+\date{October 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report documents three successive methods for generating synthetic fog and rain on the M3FD dataset (3,360 total IR images, 2,520 train / 240 val / 600 test, 6 classes) and their impact on YOLOv12s object detection performance. Method 1 uses classical uniform-veil fog and streak-overlay rain. Method 2 introduces depth-dependent transmission maps via Depth-Anything-V2. Method 3 trains CycleGAN generators on the DSERT-RoLL real driving dataset. All evaluations use Protocol A (clear-only training) and Protocol B (mixed clear+adverse training). Methods 1 and 2 fail Protocol B; Method 3 achieves a B gap of 0.049 (fog) and 0.011 (rain), below the 0.10 threshold.
+\end{abstract}
+
+\section{Introduction}
+
+The M3FD dataset provides 3,360 infrared images with 6 object classes (People, Car, Bus, Motorcycle, Lamp, Truck) at 75/7/18 train/val/test splits (2,520 / 240 / 600). All detection training and evaluation uses IR images only; RGB channels are used only for depth estimation in Methods 2--3. The clear-condition baseline (YOLOv12s, 100 epochs, trained on clear split only) achieves mAP@50-95 = 0.148.
+
+\section{M3FD Clear Baseline Samples}
+
+We select four representative thermal images from the M3FD clear test split with their paired RGB counterparts.
+
+\begin{figure}[H]
+\centering
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00013_thermal.png}
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00022_thermal.png}
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00038_thermal.png}
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00060_thermal.png}
+\caption*{M3FD Clear Thermal (test split)}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00013_rgb.png}
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00022_rgb.png}
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00038_rgb.png}
+\includegraphics[width=0.23\textwidth]{figures/m3fd_clear/00060_rgb.png}
+\caption*{M3FD Clear RGB (test split, paired)}
+\end{subcaptionblock}
+\caption{Four M3FD clear test images: thermal (top row) and paired RGB (bottom row). Image IDs: 00013, 00022, 00038, 00060.}
+\label{fig:m3fd_clear_samples}
+\end{figure}
+
+\section{Method 1: Classical Weather Simulation}
+
+\subsection{Methodology}
+
+Method 1 applies depth-free, uniform image-processing approximations using Albumentations and OpenCV.
+
+\begin{table}[H]
+\centering
+\caption{Method 1 synthesis parameters}
+\label{tab:method1_params}
+\begin{tabular}{lll}
+\toprule
+Modality & Fog & Rain \\
+\midrule
+RGB & Uniform veil: $I_{\text{fog}} = \alpha I + (1-\alpha)A$, $A \approx 200$ & Albumentations \texttt{RandomRain}: randomised diagonal streaks \\
+& Light: $\alpha=0.8$, Medium: $\alpha=0.6$, Heavy: $\alpha=0.4$ & Varying density, slant, opacity \\
+IR & Contrast reduction: $I_{\text{fog}} = \sigma(I - \mu) + \mu$ & Gaussian blur (emissivity wash-out) \\
+& Light: $\sigma=0.8$, Medium: $\sigma=0.6$, Heavy: $\sigma=0.4$ & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+No depth information is used; every pixel is treated identically regardless of scene distance.
+
+\subsection{Visual Comparison: Clear vs Method 1 Augmentations}
+
+\begin{figure}[H]
+\centering
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_fog_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_fog_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_fog_heavy.png}
+\caption*{Image 00013: Clear, Fog Light, Fog Medium, Fog Heavy}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_fog_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_fog_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_fog_heavy.png}
+\caption*{Image 00022}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_fog_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_fog_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_fog_heavy.png}
+\caption*{Image 00038}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_fog_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_fog_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_fog_heavy.png}
+\caption*{Image 00060}
+\end{subcaptionblock}
+\caption{Method 1 fog synthesis on four M3FD clear test images. Each row: Clear, Fog Light ($\alpha=0.8$), Fog Medium ($\alpha=0.6$), Fog Heavy ($\alpha=0.4$).}
+\label{fig:method1_fog}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_rain_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_rain_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00013_rain_heavy.png}
+\caption*{Image 00013: Clear, Rain Light, Rain Medium, Rain Heavy}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_rain_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_rain_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00022_rain_heavy.png}
+\caption*{Image 00022}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_rain_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_rain_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00038_rain_heavy.png}
+\caption*{Image 00038}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_clear.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_rain_light.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_rain_medium.png}
+\includegraphics[width=0.23\textwidth]{figures/method1/00060_rain_heavy.png}
+\caption*{Image 00060}
+\end{subcaptionblock}
+\caption{Method 1 rain synthesis on four M3FD clear test images. Each row: Clear, Rain Light, Rain Medium, Rain Heavy.}
+\label{fig:method1_rain}
+\end{figure}
+
+\subsection{Results}
+
+Clear baseline: mAP@50 = 0.268, mAP@50-95 = 0.148.
+
+\begin{table}[H]
+\centering
+\caption{Method 1 Protocol A results (clear-only training, mAP@50-95)}
+\label{tab:method1_results}
+\begin{tabular}{lccc}
+\toprule
+Condition & mAP@50 & mAP@50-95 & Gap vs Clear \\
+\midrule
+Clear (baseline) & 0.268 & 0.148 & -- \\
+Fog Light & 0.268 & 0.148 & 0.001 \\
+Fog Medium & 0.243 & 0.135 & 0.013 \\
+Fog Heavy & 0.206 & 0.117 & 0.032 \\
+Rain Light & 0.261 & 0.144 & 0.005 \\
+Rain Medium & 0.189 & 0.094 & 0.054 \\
+Rain Heavy & 0.079 & 0.041 & 0.108 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{A Verdict: FAILED.} Maximum gap 0.108 (Rain Heavy) < 0.15 threshold.
+
+\subsection{Analysis}
+
+The uniform veil lacks distance-dependent attenuation. Near and far objects are degraded equally, so YOLO retains most detection capability. The 0.108 gap at Heavy Rain is the only meaningful drop but remains far below threshold. Rain synthesis adds streaks (RGB) and blur (IR) with negligible impact on detection.
+
+\section{Method 2: Depth-Based Fog Synthesis}
+
+\subsection{Methodology}
+
+Method 2 replaces the uniform veil with a depth-dependent transmission map derived from monocular depth estimation on RGB images using Depth-Anything-V2-Small-hf.
+
+\subsubsection{Depth Estimation}
+
+Monocular depth estimated for each RGB image: relative depth map $D(x,y)$, normalized per-image to $[0, 1]$. Distance: $\text{distance}(x,y) = 1 - D(x,y)$ (Depth Anything outputs high=close).
+
+\subsubsection{Fog Synthesis --- RGB}
+
+Koschmieder model: $t_{\text{RGB}}(x,y) = \exp(-\beta \cdot \text{distance}(x,y))$, $I_{\text{fog}}(x,y) = I(x,y) \cdot t_{\text{RGB}} + A \cdot (1 - t_{\text{RGB}})$, $A = 210$.
+
+$\beta$ values: Medium = 3.0, Heavy = 4.5.
+
+\subsubsection{Fog Synthesis --- IR (Thermal)}
+
+$t_{\text{IR}}(x,y) = \exp(-\beta_{\text{IR}} \cdot \text{distance}(x,y))$, $\beta_{\text{IR}} = 0.3 \cdot \beta$. $I_{\text{fog\_IR}} = I_{\text{IR}} \cdot t_{\text{IR}} + BG \cdot (1 - t_{\text{IR}})$, $BG = 128$ (mid-grey background radiance).
+
+Lower $\beta_{\text{IR}}$ reflects thermal radiation penetrating fog better than visible light.
+
+\subsubsection{Label Filtering}
+
+Ground-truth boxes with mean $t_{\text{IR}} < 0.1$ discarded from labels (genuinely invisible objects).
+
+\subsubsection{Rain Synthesis}
+
+IR rain identical to Method 1 (Gaussian blur). Depth-aware rain applied only to RGB; since detection uses IR, rain results are Method 1 verbatim.
+
+\subsection{Visual Comparison: Clear vs Method 2 Augmentations}
+
+\begin{figure}[H]
+\centering
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method2/00013_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00013_fog_medium.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00013_fog_heavy.png}
+\caption*{Image 00013: Clear, Fog Medium ($\beta=3.0$), Fog Heavy ($\beta=4.5$)}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method2/00022_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00022_fog_medium.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00022_fog_heavy.png}
+\caption*{Image 00022}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method2/00038_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00038_fog_medium.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00038_fog_heavy.png}
+\caption*{Image 00038}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method2/00060_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00060_fog_medium.png}
+\includegraphics[width=0.31\textwidth]{figures/method2/00060_fog_heavy.png}
+\caption*{Image 00060}
+\end{subcaptionblock}
+\caption{Method 2 fog synthesis on four M3FD clear test images. Each row: Clear, Fog Medium ($\beta=3.0$), Fog Heavy ($\beta=4.5$). Depth maps not shown (computed on-the-fly during synthesis).}
+\label{fig:method2_fog}
+\end{figure}
+
+\subsection{Results}
+
+Clear baseline: mAP@50 = 0.268, mAP@50-95 = 0.148.
+
+\begin{table}[H]
+\centering
+\caption{Method 2 Protocol A results (clear-only training, mAP@50-95)}
+\label{tab:method2_3a_results}
+\begin{tabular}{lccc}
+\toprule
+Condition & mAP@50 & mAP@50-95 & Gap vs Clear \\
+\midrule
+Clear (baseline) & 0.268 & 0.148 & -- \\
+Fog Medium ($\beta=3.0$) & 0.199 & 0.114 & 0.035 \\
+Fog Heavy ($\beta=4.5$) & 0.097 & 0.072 & 0.076 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{A Verdict: WEAK.} Heavy fog gap 0.076 < 0.15 threshold.
+
+\begin{table}[H]
+\centering
+\caption{Method 2 Protocol B results (mixed training: clear + fog\_heavy, mAP@50-95)}
+\label{tab:method2_3b_results}
+\begin{tabular}{lcc}
+\toprule
+Split & mAP@50 & mAP@50-95 \\
+\midrule
+Clear test (B model) & 0.244 & 0.141 \\
+Fog Heavy test (B model) & 0.237 & 0.140 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{B Gap (clear $-$ fog): $-0.001$.}
+
+\textbf{B Verdict: FAILED.} Gap $\approx 0$; model trained on mixed data is marginally better on fog than clear. Synthetic fog fully adapted to.
+
+Rain results: Medium gap 0.054, Heavy gap 0.137.
+
+\subsection{Analysis}
+
+The Koschmieder filter with depth-dependent transmission is a deterministic mathematical transformation. A model exposed to both clear and transformed images during training learns to invert this function --- not by understanding fog physics, but by learning the spatial pattern the depth-transmission formula produces. The synthesis is too regular; real fog has scene-specific scattering, turbulence, partial visibility variation, and sensor noise that create diversity a model cannot fully adapt to.
+
+The B model scores 0.140 on fog vs 0.141 on clear (fog marginally easier). Contributing factors: (1) Label filtering removes occluded boxes ($t < 0.1$) from both training and test fog sets, removing hard detections present in clear test labels. (2) More training data: 5,040 mixed vs 2,520 clear-only; the B model generalises better overall (clear test mAP also improved from 0.148 to 0.141).
+
+RGB fog synthesis does not affect detection metrics (all YAMLs point to IR/ paths; only IR fog synthesis is operative).
+
+\section{Method 3: CycleGAN Translation}
+
+\subsection{DSERT-RoLL Target Domain}
+
+DSERT-RoLL (CVPR 2026) is a real driving dataset with paired RGB+thermal images under clear, fog, and rain conditions. We use only the thermal (LWIR) modality: \texttt{Fog} (3,282 frames), \texttt{Heavy\_Rain} (1,938 frames), \texttt{Light\_Rain} (2,214 frames). All images at native resolution, rectified left thermal (\texttt{rectified\_THERMAL\_L}). DSERT-RoLL sample images not included (dataset not available locally for figure generation).
+
+\subsection{CycleGAN Training}
+
+Two independent CycleGANs trained (M3FD IR $\to$ DSERT-RoLL thermal):
+
+\begin{itemize}
+\item \texttt{thermal\_fog}: M3FD IR (clear) $\to$ DSERT Fog. 50 epochs, 126,000 iterations, 4.98 h.
+\item \texttt{thermal\_rain}: M3FD IR (clear) $\to$ DSERT Heavy\_Rain + Light\_Rain (combined). 50 epochs, 126,000 iterations, 4.73 h.
+\end{itemize}
+
+Architecture: ResNet-9 generator (instance norm, $ngf=64$), 70$\times$70 PatchGAN discriminator ($ndf=64$), LSGAN, Adam $2\times10^{-4}$ ($\beta_1=0.5, \beta_2=0.999$), $\lambda_A=\lambda_B=10$, $\lambda_{\text{identity}}=0.5$, pool size 50, batch 1, 512$\times$512 crops, AMP. Fully convolutional; inference at native M3FD 1024$\times$768.
+
+\subsection{Visual Comparison: M3FD Clear $\to$ CycleGAN Fog / Rain}
+
+\begin{figure}[H]
+\centering
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method3/00013_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00013_fog.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00013_rain.png}
+\caption*{Image 00013: Clear, CycleGAN Fog, CycleGAN Rain}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method3/00022_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00022_fog.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00022_rain.png}
+\caption*{Image 00022}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method3/00038_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00038_fog.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00038_rain.png}
+\caption*{Image 00038}
+\end{subcaptionblock}
+\begin{subcaptionblock}{\textwidth}
+\centering
+\includegraphics[width=0.31\textwidth]{figures/method3/00060_clear.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00060_fog.png}
+\includegraphics[width=0.31\textwidth]{figures/method3/00060_rain.png}
+\caption*{Image 00060}
+\end{subcaptionblock}
+\caption{Method 3 CycleGAN translation on four M3FD clear test images. Columns: Clear (source), CycleGAN Fog ($G_{A\to B}$, thermal\_fog), CycleGAN Rain ($G_{A\to B}$, thermal\_rain). DSERT $\to$ reconstruction not shown (requires real DSERT images not available locally).}
+\label{fig:method3_translations}
+\end{figure}
+
+\subsection{DSERT-RoLL $\to$ M3FD Reconstruction (Cycle Consistency)}
+
+The reconstruction $G_{B\to A}$ applied to real DSERT Fog images tests whether the generator learned weather translation or sensor identity transfer. Not shown here (requires real DSERT images not available locally).
+
+\subsection{Edge Shift Check}
+
+Translation preserves geometry: mean edge shift well under 1 px in both axes, within the $\pm3$ px search window. Labels inherited from clear images remain aligned.
+
+\subsection{Protocol A Results (Clear-Only Model on CycleGAN Test)}
+
+Clear baseline: mAP@50-95 = 0.148.
+
+\begin{table}[H]
+\centering
+\caption{Method 3 Protocol A results (clear-only training, mAP@50-95)}
+\label{tab:method3_3a_results}
+\begin{tabular}{lccc}
+\toprule
+Condition & mAP@50 & mAP@50-95 & Gap vs Clear \\
+\midrule
+Fog (CycleGAN) & 0.075 & 0.048 & 0.101 \\
+Rain (CycleGAN) & 0.185 & 0.105 & 0.044 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Protocol B Results (Mixed Training on Clear + CycleGAN)}
+
+\begin{table}[H]
+\centering
+\caption{Method 3 Protocol B results (mixed training, mAP@50-95)}
+\label{tab:method3_3b_results}
+\begin{tabular}{lcc}
+\toprule
+Model / Split & mAP@50 & mAP@50-95 \\
+\midrule
+B Fog model / Clear test & 0.260 & 0.147 \\
+B Fog model / Fog test & 0.193 & 0.098 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{B Fog Gap (clear $-$ fog): +0.049.}
+
+\begin{table}[H]
+\centering
+\caption{Method 3 Protocol B Rain results (mixed training, mAP@50-95)}
+\label{tab:method3_3b_rain_results}
+\begin{tabular}{lcc}
+\toprule
+Model / Split & mAP@50 & mAP@50-95 \\
+\midrule
+B Rain model / Clear test & 0.219 & 0.115 \\
+B Rain model / Rain test & 0.197 & 0.104 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{B Rain Gap (clear $-$ rain): +0.011.}
+
+\subsection{Summary Comparison}
+
+\begin{table}[H]
+\centering
+\caption{Summary of A and B gaps across all methods (mAP@50-95)}
+\label{tab:summary}
+\begin{tabular}{lcccc}
+\toprule
+Method & A Fog Gap & B Fog Gap & A Rain Gap & B Rain Gap \\
+\midrule
+1 (Classical) & 0.032 & -- & 0.108 & -- \\
+2 (Depth) & 0.076 & $-0.001$ & 0.137 & -- \\
+3 (CycleGAN) & 0.101 & 0.049 & 0.044 & 0.011 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{B Bar: $\geq 0.10$.} All methods fail Protocol B.
+
+\section{Conclusion}
+
+Method 1 (classical) fails A (max gap 0.108). Method 2 (depth) reaches WEAK on A (0.076) but fails B ($-0.001$) --- the deterministic Koschmieder filter is fully adapted to under mixed training. Method 3 (CycleGAN) produces a large A gap (0.101 fog, 0.044 rain) but B gaps collapse to 0.049 and 0.011, below the 0.10 threshold. The synthetic fog/rain remains learnable by YOLOv12s with exposure. UNIRI-TID's real-weather gap (0.09--0.13 APm) remains the only persistent benchmark.
+\end{document}

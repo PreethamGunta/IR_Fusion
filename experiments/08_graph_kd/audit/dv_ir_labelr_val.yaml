@@ -1,0 +1,12 @@
+path: /home2/home/preetham_g/gate_ir_release/experiments/08_graph_kd/audit/dv_ir_labelr_val
+train: images
+val: images
+test: images
+
+nc: 5
+names:
+  0: car
+  1: truck
+  2: bus
+  3: van
+  4: freight_car

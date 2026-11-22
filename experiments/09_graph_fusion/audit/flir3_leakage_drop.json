@@ -1,0 +1,95 @@
+{
+ "policy": "drop",
+ "splits": {
+  "train": {
+   "ir_images": 1387,
+   "rgb_images": 1387
+  },
+  "val": {
+   "ir_images": 223,
+   "rgb_images": 223
+  },
+  "test": {
+   "ir_images": 1013,
+   "rgb_images": 1013
+  }
+ },
+ "pair_integrity": {
+  "train": {
+   "base_equal": true,
+   "ir_only": 0,
+   "rgb_only": 0
+  },
+  "val": {
+   "base_equal": true,
+   "ir_only": 0,
+   "rgb_only": 0
+  },
+  "test": {
+   "base_equal": true,
+   "ir_only": 0,
+   "rgb_only": 0
+  }
+ },
+ "leakage": {
+  "train_val": {
+   "exact_dhash_duplicates": 0
+  },
+  "train_test": {
+   "exact_dhash_duplicates": 0
+  },
+  "val_test": {
+   "exact_dhash_duplicates": 0
+  },
+  "test_to_train_nn": {
+   "min": 8,
+   "median": 16.0,
+   "p05": 12.0,
+   "p95": 19.0
+  },
+  "val_to_train_nn": {
+   "min": 9,
+   "median": 16.0,
+   "p05": 11.0,
+   "p95": 19.0
+  },
+  "train_to_train_nn": {
+   "min": 0,
+   "median": 13.0,
+   "p05": 2.0,
+   "p95": 19.0
+  }
+ },
+ "normalization": {
+  "ir": {
+   "images": 347,
+   "pixels": 113704960,
+   "mean": [
+    0.5440373648827632,
+    0.5440373648827632,
+    0.5440373648827632
+   ],
+   "std": [
+    0.2631244550659624,
+    0.2631244550659624,
+    0.2631244550659624
+   ],
+   "sha256": "1d5d537134325fc60b903d0a9ecb6b460ab8459f6ee2dc6be7574b0ebea719c4"
+  },
+  "rgb": {
+   "images": 347,
+   "pixels": 113704960,
+   "mean": [
+    0.6793449748146431,
+    0.6917885597569798,
+    0.6898140533513226
+   ],
+   "std": [
+    0.16490018373413273,
+    0.17595611663771987,
+    0.1906800177949775
+   ],
+   "sha256": "c1b20b2912630600f0bbd8b6bd474a4cd3aa1434bf3effb0aacadd7f1f86676d"
+  }
+ }
+}

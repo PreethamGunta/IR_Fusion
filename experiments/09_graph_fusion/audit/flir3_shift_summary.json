@@ -1,0 +1,20 @@
+{
+ "train": {
+  "n": 4129,
+  "valid_raw": 3211,
+  "median_abs_dx": 2.0302,
+  "median_abs_dy": 0.7531,
+  "frac_flagged": 0.6093485105352385,
+  "cropped_n": 667,
+  "cropped_frac_flagged": 0.9865067466266867
+ },
+ "test": {
+  "n": 1013,
+  "valid_raw": 801,
+  "median_abs_dx": 2.0418,
+  "median_abs_dy": 0.6984,
+  "frac_flagged": 0.5153010858835143,
+  "cropped_n": 0,
+  "cropped_frac_flagged": 0.0
+ }
+}
