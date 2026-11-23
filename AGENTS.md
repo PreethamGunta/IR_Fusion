@@ -58,6 +58,17 @@ this file wins.
   PLAN.md.
 - Review executor commits and SUMMARY.md before accepting a phase.
 
+## Consequential work
+
+- Before any Tier-3 action — training, inference sweeps, comparative
+  evaluations, destructive operations, or claims about results — load the
+  `rigorous-engineering` skill and apply its §3.3 pre-flight and §8 self-review.
+- Minimum pre-flight: a matched control inside the same pipeline, the *resolved*
+  (not requested) config recorded, code SHA in `ref_meta.json`, duplicate check
+  against the run ledger, and a resource profile that fits the window.
+- Report numbers only from final artifacts; label single-seed or within-noise
+  deltas as provisional, never as settled rankings.
+
 ## Verification
 
 - YOLO: check training logs for "backgrounds" to confirm labels were found; a
