@@ -165,7 +165,30 @@ class GFYOLO(DetectionModel):
             elif i == self._rgb_entry:
                 cur = x[:, 3:].contiguous()
             elif getattr(m, "is_fuse", False):
-                cur = m(y[m.f[0]], y[m.f[1]])
+                a, b = y[m.f[0]], y[m.f[1]]
+                # The fuse ALWAYS computes in fp32, autocast-free:
+                #  - under AMP training the params are already fp32;
+                #  - checkpoints serialize the EMA half (ultralytics
+                #    save_model: deepcopy(ema).half()), so inference from a
+                #    checkpoint sees fp16 params; lift the module to fp32
+                #    once rather than follow the dtype -- an E21 half-forward
+                #    overflowed its fp16 fuse delta (2026-11-23), and a
+                #    hardcoded input cast alone crashed float-input vs
+                #    Half-weight convs (E10/E14/E30 final evals, 2026-11-22).
+                # Non-finite inputs are clamped instead of propagated: a
+                # single transient overflow upstream would otherwise poison
+                # BN running stats and trip the fuse guards mid-run (E35
+                # attempt 2, 2026-11-22). No-op on healthy batches; the fp16
+                # output cast is clamped into the half range.
+                with torch.autocast(device_type=a.device.type, enabled=False):
+                    if next(m.parameters()).dtype != torch.float32:
+                        m.float()
+                    a_in = torch.nan_to_num(a.float(), posinf=65000.0, neginf=-65000.0)
+                    b_in = torch.nan_to_num(b.float(), posinf=65000.0, neginf=-65000.0)
+                    cur = m(a_in, b_in)
+                    if a.dtype == torch.float16:
+                        cur = torch.nan_to_num(cur, nan=0.0, posinf=65000.0, neginf=-65000.0)
+                    cur = cur.to(a.dtype)
                 y.append(cur if i in self.save else None)
                 continue
             elif m.f != -1:
@@ -202,10 +225,11 @@ class GFYOLO(DetectionModel):
                 key = f"model.{tgt}.{rest}"
                 if key in cur and cur[key].shape == v.shape:
                     new[key] = v.clone()
-        # IR stem = grayscale mean of the RGB stem filters
+        # IR stem = grayscale mean of the RGB stem filters, halved like 08's
+        # _adapt_first_conv (activation-scale preservation)
         stem = new.get("model.0.conv.weight", None)
         if stem is not None:
-            gray = stem.mean(1, keepdim=True).repeat(1, 3, 1, 1)
+            gray = stem.mean(1, keepdim=True).repeat(1, 3, 1, 1) / 2.0
             if "model.0.conv.weight" in cur and \
                     cur["model.0.conv.weight"].shape == gray.shape:
                 new["model.0.conv.weight"] = gray

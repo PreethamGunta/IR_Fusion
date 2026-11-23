@@ -122,6 +122,20 @@ class PairedYOLODataset(YOLODataset):
             if Path(a).stem.replace("_PreviewData", "") != Path(b).stem.replace("_RGB", ""):
                 raise ValueError(f"pair order mismatch: {a} vs {b}")
 
+    def close_mosaic(self, hyp=None):
+        """No-op: keep both modalities' transforms identical.
+
+        The stock implementation rebuilds THIS dataset's transforms with the
+        training args (RandomFlip p=0.5, HSV, Albumentations), while the RGB
+        half keeps its NO_AUG transforms — from that epoch on the two
+        modalities are transformed independently, so the pair is misaligned.
+        Verified 2026-11-22: close_mosaic (epoch 91/100) poisoned the
+        dual-stream BN statistics and collapsed E10/E14 screening, while the
+        single-stream E02 only took a short train-loss hit. This dataset runs
+        no mosaic anyway, so the rebuild has no benefit.
+        """
+        return
+
     def __getitem__(self, index: int):
         s = super().__getitem__(index)
         r = self.rgb_ds[index]

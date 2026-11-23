@@ -53,6 +53,49 @@ def _fixed_rand(value: float):
     return _rand
 
 
+def test_sanitize_bn_buffers_resets_poisoned_stats():
+    """A transient inf forward must not permanently poison BN running stats.
+
+    Regression (2026-11-22, E35 attempt 2): one non-finite train forward was
+    absorbed into running_var; the next validation (which uses running stats)
+    died with non-finite attention. The watchdog resets poisoned buffers so
+    they re-estimate instead of killing the run.
+    """
+    import torch
+    from torch import nn
+    from gfyolo.gf_trainer import sanitize_bn_buffers
+
+    m = nn.Sequential(nn.Conv2d(3, 4, 3), nn.BatchNorm2d(4), nn.ReLU())
+    bn = m[1]
+    bn.running_var[2] = float("inf")
+    bn.running_mean[1] = float("nan")
+    assert sanitize_bn_buffers(m) == 1
+    assert bool(torch.isfinite(bn.running_var).all())
+    assert bool(torch.isfinite(bn.running_mean).all())
+    assert float(bn.running_var.max()) == 1.0 and float(bn.running_mean.abs().max()) == 0.0
+    # healthy model: no-op, zero resets
+    assert sanitize_bn_buffers(m) == 0
+
+
+def test_close_mosaic_is_noop():
+    """close_mosaic must not rebuild the IR transforms (pairing guard).
+
+    Regression: the stock rebuild enabled RandomFlip/HSV on the IR half only,
+    misaligning the pair from epoch 91 on and collapsing the dual-stream runs.
+    """
+    from ultralytics.cfg import get_cfg
+    from gfyolo.paired_dataset import make_paired_dataset
+
+    ds = make_paired_dataset("configs/dronevehicle_v2_paired_screening.yaml",
+                             "configs/dronevehicle_v2_rgb_screening.yaml",
+                             "train", mode="train", imgsz=640,
+                             paired_augment=True, paired_rot90=True)
+    before = [id(t) for t in ds.transforms.transforms]
+    ds.close_mosaic(hyp=get_cfg())
+    after = [id(t) for t in ds.transforms.transforms]
+    assert before == after, "close_mosaic rebuilt the IR transforms"
+
+
 def test_paired_geom_identical_halves(monkeypatch):
     """IR == RGB input, photometry off => geometry keeps the halves identical
     and the boxes valid (plan sec 0.5 paired augmentation test)."""

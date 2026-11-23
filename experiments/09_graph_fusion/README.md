@@ -1,8 +1,9 @@
 # Experiment 09 — Graph-Based RGB-IR Fusion
 
 **Status: active.** The reference tier (E00–E03) is complete with locked test
-results; the fusion ladder (E10–E35) is implemented and the first rungs are
-training. Numbers are in [RESULTS.md](RESULTS.md).
+results; in the fusion ladder (E10–E35), E30 (val 0.2521, ladder leader) and
+E21 (0.2258) are complete, E35 is training with the remaining rungs queued
+behind it. Numbers are in [RESULTS.md](RESULTS.md).
 
 ## 1. Motivation and objectives
 
@@ -102,19 +103,19 @@ references, `E1x` = simple fusion, `E2x` = attention, `E3x`–`E4x` = graph.
 
 | ID | Run name | `Fuse` module | What it changes vs. parent | Status |
 |---|---|---|---|---|
-| **E10** | `e10_screening` | concat + 1×1 conv at P3–P5 | ladder base (learned simple fusion) | training |
+| **E10** | `e10_screening` | concat + 1×1 conv at P3–P5 | ladder base (learned simple fusion) | queued (stage 4, auto-resume ep17) |
 | E11 | — | elementwise add, fixed weights | no learned mixing | planned |
 | E12 | — | channel-softmax modality gate | per-channel trust | planned |
 | E13 | — | channel + spatial softmax gates | IV-PAFNet MSFA-style port | planned |
-| **E14** | `e14_screening` | IR-anchored residual `f_ir + sigmoid(g)·conv([f_ir,f_rgb])`, negative-bias gate | starts as IR-only, learns corrections | training |
+| **E14** | `e14_screening` | IR-anchored residual `f_ir + sigmoid(g)·conv([f_ir,f_rgb])`, negative-bias gate | starts as IR-only, learns corrections | queued (stage 4, fresh) |
 | E15 | — | E13 + visible-guided deformable alignment | misregistration fix | planned |
 | E20 | — | one-directional cross-attention (IR←RGB) | attention baseline | planned |
-| **E21** | — | bidirectional cross-attention, block-shared Q/K/V | DMFF-style attention representative | planned |
+| **E21** | — | bidirectional cross-attention, block-shared Q/K/V | DMFF-style attention representative | **complete: best val 0.2258 (ep87)** |
 | E22 | — | intra-modal self-attention, capacity-matched to E21 | control: no cross-modal path | conditional |
-| **E30** | — | GAT on grid + cross-modal window edges (IR←RGB) | first graph rung | planned |
+| **E30** | — | GAT on grid + cross-modal window edges (IR←RGB) | first graph rung | **complete: best val 0.2521 (ep100), leads the ladder** |
 | E31–E33 | — | GCN / GraphSAGE / GATv2+edge features | operator swaps | planned |
 | E34 | — | bidirectional graph messages | refinement | planned |
-| **E35** | — | E30 + semantic-kNN cross-modal edges | the core novelty | planned |
+| **E35** | — | E30 + semantic-kNN cross-modal edges | the core novelty | running (stage 2, fresh, BN-stat watchdog) |
 | E36–E37 | — | cross-scale edges; typed edge weights | refinements | planned |
 | E38 | — | connectivity sweep (`r`, `R`, `k`, sparse/dense) | tuning | planned |
 | E39–E41 | — | residual vs direct output; gate type; fusion placement | ablations | planned |
@@ -150,7 +151,10 @@ alignment policies (`drop`, `warp`) and the 1,013-frame paper test list.
 
 **Recipe.** YOLO12s, 640 px, batch 16, seed 0, patience 30, val-only checkpoint
 selection. Ladder rungs train on a ⅓-train screening subset (6,000 frames in 15
-contiguous blocks); finalists rerun on full train.
+contiguous blocks); finalists rerun on full train. On a single 49 GB GPU,
+graph/attention rungs run solo (two graph runs together forced an OOM
+auto-reduction to batch=8, breaking both pace and recipe comparability); only
+the lean baselines (E10+E14) share the GPU.
 
 **Protocol.** All headline numbers come from the project's own
 pycocotools-based evaluator (`src/eval/coco_eval.py`) on predictions exported
@@ -164,6 +168,19 @@ as a result.
 `results/LOCK_<exp>.json` (config hash, checkpoint hash, val metric) and refuses
 to overwrite results without a logged `--override`. Locks were created before
 any test predictions were exported.
+
+**Resume semantics.** While a run is active, `last.pt` and `best.pt` are written
+from the same full checkpoint: model + EMA, optimizer state, scaler, epoch
+counter, `best_fitness` and `train_args`. `resume=True` restores all of it and
+continues the same LR schedule from that epoch. When a run **completes**,
+Ultralytics' final evaluation calls `strip_optimizer()` on **both** files
+(`epoch=-1`, optimizer and EMA state removed), so a finished run cannot be
+resumed from either; only a run that was cancelled or crashed before final
+evaluation keeps a full-state checkpoint. Restarting inside an existing run
+directory without `resume=True` also resets the epoch/optimizer — attempts are
+therefore always launched into fresh directories (old ones renamed
+`*_INVALID_<reason>`). A warm start from weights alone (fresh optimizer, epoch
+reset) changes the optimization budget and is not used for ladder comparisons.
 
 **Leakage gate.** `scripts/check_leakage.py` verifies frame-id disjointness,
 pair integrity, duplicate hashes, train-only normalisation and label

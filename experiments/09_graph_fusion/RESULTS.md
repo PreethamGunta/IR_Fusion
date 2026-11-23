@@ -142,23 +142,69 @@ yet.
 
 | Run | Method | Status | Best val mAP50-95 (ep) | Note |
 |---|---|---|---:|---|
-| E10 | concat + 1×1 at P3–P5 | training complete (100 ep) | **0.2174** (ep87) | val collapsed to 0.0037 at ep100; `best.pt` is ep87; late-training instability to diagnose |
-| E14 | IR-anchored gated residual | in progress | 0.1931 at snapshot (ep65, still improving) | — |
-| E21 | bidirectional cross-attention | planned | — | — |
+| E10 | concat + 1×1 at P3–P5 | rerunning (stage 2, auto-resume ep17) | salvaged pre-collapse 0.2258 (ep80) | two earlier attempts invalid: `*_INVALID_ampcollapse`, `*_INVALID_close_mosaic`; the ep≤90 trajectory is valid (identical to the fixed code), final 10 epochs lost |
+| E14 | IR-anchored gated residual | rerunning (stage 2, fresh) | salvaged pre-collapse 0.2068 (ep80) | same failure history as E10 (`e14_screening_INVALID_close_mosaic`) |
+| E21 | bidirectional cross-attention | **complete** | **0.2258** (ep87) | resumed from the ep46 pre-collapse checkpoint; crossed ep91 healthy (0.2186 at ep93), final 0.2246; the half-precision final eval crashed on an fp16 fuse-delta overflow (see below), fixed and DONE formalised |
 | E22 | capacity-matched self-attention control | conditional on E21 > E14 | — | — |
-| E30 | GAT, grid + cross-modal window edges | planned | — | — |
-| E35 | E30 + semantic-kNN edges | planned | — | — |
+| E30 | GAT, grid + cross-modal window edges | **complete** | **0.2521** (ep100) | first rung with a completed evaluation; crossed ep91 healthy (0.2460 at ep92) after the `close_mosaic` fix, still climbing at ep100 |
+| E35 | E30 + semantic-kNN edges | running (attempt 4, hardened) | — | attempt 1 invalid (`INVALID_batch8oom`); attempt 2 invalid (`INVALID_ep3_val_nan`, see BN-poisoning bullet); attempt 3 aborted at ~ep3 for the fuse-hardening fix (`PARTIAL_ep3`) |
 
 The screening-subset level (≈0.22 vs 0.50 for E02 on full train) is consistent
-with training on one third of the data, but the E10 late-epoch collapse is an
-anomaly that must be understood (instability, augmentation, or schedule) before
-any rung is promoted or rerun on full data.
+with training on one third of the data. Three failure modes were diagnosed and
+closed along the way (2026-11-22):
+
+- **The ep91 collapse.** Both early E10/E14 attempts died at exactly ep91:
+  Ultralytics' `close_mosaic` rebuilds the IR half's transforms with the
+  training augmentations (fliplr 0.5, HSV on) while the RGB half keeps the
+  paired NO_AUG transforms — from ep91 the modalities are misaligned in ~50%
+  of samples and the shared BN statistics are poisoned (`running_var` ~10³).
+  The AMP-overflow account recorded here earlier was a downstream symptom,
+  not the cause (the fp32-fuse rerun collapsed identically at the same
+  epoch). Fix: `PairedYOLODataset.close_mosaic` is a no-op with a regression
+  test (`tests/test_fused.py`). **Verified in training: E30 crossed ep91
+  healthy (0.2460 at ep92) and completed at 0.2521.**
+- **The final-eval dtype crash.** Every completed run exited rc=1 after its
+  last epoch: Ultralytics' half-precision final validation fed the fuse
+  fp32 inputs against fp16 weights. Fix (in `src/gfyolo/model.py`): the fuse
+  runs autocast-free in its own parameter dtype — fp32 under AMP training,
+  so the overflow hardening is retained; fp16 under half validation,
+  verified by a finite half-precision forward of the completed E30
+  checkpoint. Training numbers and `best.pt` were unaffected.
+- **Concurrent graph runs OOM.** Two graph rungs on one 49 GB GPU forced an
+  auto-reduction to batch=8 (recipe and pace broken: ~10 min/epoch); graph
+  and attention rungs now run solo, and only the lean baselines (E10+E14)
+  share the GPU.
+- **Transient non-finite forwards poison BN running stats (E35 attempt 2).**
+  One bad forward during epoch-3 training was absorbed into
+  `running_mean`/`running_var` — train mode uses batch statistics, so
+  training looked healthy, but the next validation pass uses the running
+  stats and died on its first batch (non-finite attention, hard guard in
+  the reviewed fuse modules). Master and EMA weights at the ep2 checkpoint
+  were verified fully finite; only the running stats were hit. Mitigation
+  (all uniform across rungs, no-ops on healthy batches):
+  `GFTrainer.optimizer_step` resets any non-finite BN running stats before
+  the EMA update (`gfyolo.gf_trainer.sanitize_bn_buffers`, regression test
+  in `tests/test_fused.py`), the same sanitizer runs before each
+  validation pass, and the fuse clamps non-finite inputs instead of
+  propagating them (`src/gfyolo/model.py`). The *trigger* of the transient
+  overflow remains undiagnosed — flagged for proper investigation if E35
+  is promoted to full training.
+- **Half-serialized checkpoints (E10/E14/E30/E21 final evals).**
+  Ultralytics' `save_model` serializes the EMA **half** — so every
+  completed run's exit-time validation loads fp16 weights, and the fuse
+  first crashed on the dtype mismatch (float inputs vs Half weights) and,
+  after a dtype-following interim fix, on a genuine fp16 fuse-delta
+  overflow (E21: the entire P3 delta non-finite). Final design
+  (`src/gfyolo/model.py`): the fuse **always computes in fp32** — the
+  module is lifted via `.float()` when a half checkpoint is loaded — and
+  the fp16 output cast is clamped into the half range. Verified by finite
+  half-model forwards of the completed E30 and E21 checkpoints.
 
 The fusion modules exist as standalone PyTorch components with 77 unit tests
 (channel contract, gate-initialisation identity, zero-modality behaviour,
 neighbour-table bounds and determinism, attention normalisation, fp16
-stability, gradient flow), and the dual-stream model is integrated and
-smoke-tested. No ladder rung has a completed evaluation.
+stability, gradient flow), and the dual-stream model is integrated; E30 is the
+first rung with a completed evaluation, and it leads the ladder.
 
 ## 6. Validation evidence
 
