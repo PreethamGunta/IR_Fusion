@@ -4,8 +4,12 @@
 # GT dumps, caches or nested repositories.
 
 # ---- datasets ----
-data/
+/data/
 experiments/*/data/
+# Exception: this directory holds dataset-prep source (not data); see its README.
+!experiments/05_detector_bench/data/
+# Legacy M3FD working dir: only a data-moved marker file, no source.
+experiments/01_flir_weather_translation/m3fd_experiments/
 
 # ---- training outputs ----
 experiments/*/runs/
@@ -119,6 +123,7 @@ rules.md
 # ---- agent tooling / scratch ----
 .opencode/
 scratch/
+.planning/
 experiments/*/method1_classical/results_*.json
 experiments/*/method2_depth/results_*.json
 experiments/*/method3_cyclegan/results/
