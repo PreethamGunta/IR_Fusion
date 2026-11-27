@@ -128,3 +128,8 @@ experiments/*/method1_classical/results_*.json
 experiments/*/method2_depth/results_*.json
 experiments/*/method3_cyclegan/results/
 experiments/*/method3_cyclegan/*.json
+
+# ---- experiment 09: extended run series and vendored paper template ----
+experiments/*/runs_g2/
+experiments/09_graph_fusion/paper/template/
+experiments/09_graph_fusion/paper/cvpr_template.zip

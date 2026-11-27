@@ -34,6 +34,9 @@ def main() -> None:
     ap.add_argument("--iou", type=float, default=0.6)
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--batch", type=int, default=16)
+    ap.add_argument("--tta", action="store_true",
+                    help="test-time augmentation (flips/scales merged by NMS); "
+                         "inference-time only — report as a labelled variant")
     ap.add_argument("--device", default="0")
     args = ap.parse_args()
 
@@ -77,7 +80,8 @@ def main() -> None:
             names = [Path(b["im_file"]).name for b in batch]
             results = model.predict(imgs, imgsz=args.imgsz, conf=args.conf,
                                     iou=args.iou, max_det=100,
-                                    device=args.device, verbose=False)
+                                    device=args.device, verbose=False,
+                                    augment=args.tta)
             for name, res in zip(names, results):
                 boxes = res.boxes
                 if boxes is None or len(boxes) == 0:
@@ -112,7 +116,8 @@ def main() -> None:
         "split": args.split, "paired_yaml": str(pair_yaml),
         "rgb_yaml": str(rgb_yaml),
         "conf": args.conf, "iou_nms": args.iou, "imgsz": args.imgsz,
-        "batch": args.batch, "n_images": len(ds), "n_preds": len(preds),
+        "batch": args.batch, "tta": bool(args.tta),
+        "n_images": len(ds), "n_preds": len(preds),
         "wall_s": round(time.time() - t0, 1),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }

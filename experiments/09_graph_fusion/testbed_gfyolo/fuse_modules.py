@@ -70,6 +70,7 @@ __all__ = [
     "FuseBiCrossAttention",
     "FuseGATLocal",
     "FuseGATSemantic",
+    "FuseGATTwoHop",
     "count_parameters",
 ]
 
@@ -439,12 +440,36 @@ class FuseGATLocal(nn.Module):
         self.last_delta: Optional[torch.Tensor] = None
         self._table_cache: Dict[Tuple[int, int, torch.device], dict] = {}
 
+    def __getstate__(self):
+        """Drop runtime caches from pickles (checkpoints).
+
+        The table cache is keyed by ``(H, W, device)``. Pickling it into a
+        checkpoint and reloading with ``map_location='cpu'`` moves the cached
+        *tensors* to CPU while the key still says ``cuda:0`` -- the next
+        forward then cache-hits and mixes CPU tables with CUDA features
+        (E35 exit-time eval, 2026-11-23). Runtime caches must never be
+        serialized.
+        """
+        state = self.__dict__.copy()
+        for k in ("_table_cache", "last_attn", "last_edges", "last_delta"):
+            state.pop(k, None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._table_cache = {}
+        self.last_attn = None
+        self.last_edges = None
+        self.last_delta = None
+
     # -- table management -------------------------------------------------
 
     def _tables(self, H: int, W: int, device: torch.device) -> dict:
         """Move/cache the static E30 graph table for ``(H, W, device)``."""
         key = (H, W, device)
         cached = self._table_cache.get(key)
+        if cached is not None and cached["src"].device != torch.device(device):
+            cached = None  # stale cache (e.g. loaded from a cpu-mapped ckpt)
         if cached is None:
             tbl = ir_graph_index(H, W, self.r).to(device)
             cached = {
@@ -643,3 +668,60 @@ class FuseGATSemantic(FuseGATLocal):
             k=self.k,
             include_center=self.include_center,
         )
+
+
+# ---------------------------------------------------------------------------
+# E41 -- two stacked E30 graph hops (deeper relational reasoning)
+# ---------------------------------------------------------------------------
+
+
+class FuseGATTwoHop(nn.Module):
+    """E41: two stacked E30 gated GAT hops over the same fixed edge geometry.
+
+    Hypothesis
+        One GAT hop can only compose *one* neighbour exchange; the DV oracle
+        analysis says most of the remaining headroom is on small objects, whose
+        evidence is spread over several neighbours and scales. A second hop
+        lets a node reason about its neighbours' neighbours (2-hop receptive
+        field along the grid + window graph) without changing the edge set or
+        the cost class of the neighbourhood search.
+
+    Parent rung
+        E30.
+
+    The one change
+        Compose two :class:`FuseGATLocal` layers, each with its own parameters.
+        Hop 1 is bit-identical to E30; hop 2 takes the hop-1 fused output as
+        its anchor stream and the same RGB features as its source. Kept as
+        composition on purpose: the single-hop path stays the validated E30
+        code, so a regression in E41 can only come from the extra depth.
+
+    Parameters
+        Exactly 2x the E30 module at the same ``d``.
+
+    Notes
+        ``last_delta`` follows the E30 contract: ``f_fused == f_ir + delta``.
+        The gate bias of both hops is the standard -4.0, so at step 0 the
+        module is a near-identity residual on the IR anchor.
+    """
+
+    def __init__(self, C: int, d: int = 128, r: int = 1,
+                 gate_init_bias: float = -4.0,
+                 output_init_std: float = 1e-3) -> None:
+        super().__init__()
+        self.hop1 = FuseGATLocal(C, d=d, r=r,
+                                 gate_init_bias=gate_init_bias,
+                                 output_init_std=output_init_std)
+        self.hop2 = FuseGATLocal(C, d=d, r=r,
+                                 gate_init_bias=gate_init_bias,
+                                 output_init_std=output_init_std)
+        self.last_delta: Optional[torch.Tensor] = None
+
+    def forward(self, f_ir: torch.Tensor, f_rgb: torch.Tensor) -> torch.Tensor:
+        _check_pair(f_ir, f_rgb)
+        h = self.hop1(f_ir, f_rgb)
+        out = self.hop2(h, f_rgb)
+        delta = out - f_ir
+        _raise_on_nonfinite(delta, "E41 delta")
+        self.last_delta = delta.detach()
+        return out

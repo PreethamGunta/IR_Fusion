@@ -100,10 +100,10 @@ class PairedDetectionValidator(DetectionValidator):
         self.rgb_yaml = str(rgb_yaml)
 
     def get_dataloader(self, dataset_path, batch_size):
-        ds = make_paired_dataset(
-            self.pair_yaml, self.rgb_yaml, "val", mode="val",
-            imgsz=self.args.imgsz, batch=batch_size,
-        )
+        from gfdata.unified import make_dataset as make_unified
+        ds = make_unified(self.pair_yaml, "val", modality="pair", mode="val",
+                          imgsz=self.args.imgsz, batch=batch_size,
+                          rgb_yaml=self.rgb_yaml)
         return build_dataloader(
             ds, batch_size, self.args.workers,
             shuffle=False, rank=-1, drop_last=False,

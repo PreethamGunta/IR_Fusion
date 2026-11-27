@@ -35,6 +35,7 @@ from testbed_gfyolo.fuse_modules import (  # noqa: E402
     FuseBiCrossAttention,
     FuseGATLocal,
     FuseGATSemantic,
+    FuseGATTwoHop,
 )
 from ultralytics.nn.tasks import DetectionModel  # noqa: E402
 
@@ -44,6 +45,7 @@ FUSE_REGISTRY = {
     "E21": FuseBiCrossAttention,
     "E30": FuseGATLocal,
     "E35": FuseGATSemantic,
+    "E41": FuseGATTwoHop,
 }
 
 
@@ -66,8 +68,17 @@ class GFYOLO(DetectionModel):
     """Dual-stream YOLO12s with a Fuse module at P3/P4/P5."""
 
     def __init__(self, cfg="yolo12s.yaml", nc=5, ch=6, fuse="E10",
-                 fuse_kwargs=None, verbose=False):
+                 fuse_kwargs=None, verbose=False,
+                 fuse_warmup_epochs=0, fuse_ramp_epochs=1):
         super().__init__(cfg, nc=nc, ch=3, verbose=verbose)
+        # Fuse warm-up (experiment B1): hold the fuse contribution at exactly
+        # zero for the first `fuse_warmup_epochs` epochs, then ramp to full
+        # over `fuse_ramp_epochs`. `alpha` is a pure function of the epoch, so
+        # the EMA copy that validation uses sees the same value (the trainer
+        # sets `_fuse_epoch` on both). Default 0 = off, no behaviour change.
+        self.fuse_warmup_epochs = int(fuse_warmup_epochs)
+        self.fuse_ramp_epochs = int(fuse_ramp_epochs)
+        self._fuse_epoch = 0
         # the stock model is parsed; read the split point from its own yaml
         try:
             n_bk = len(self.yaml["backbone"])
@@ -148,6 +159,98 @@ class GFYOLO(DetectionModel):
         got = torch.tensor([256 / o.shape[-2] for o in feats])
         assert torch.allclose(got, self.stride.to(got)), (got, self.stride)
 
+    def load_stream_warmstart(self, ir_ckpt: str, rgb_ckpt: str) -> dict:
+        """Warm-start both streams from DV-trained single-modality detectors.
+
+        Why: every fused arm so far (E10/E30/E35) started from stock COCO
+        yolo12s in *both* streams, so the fused model had to relearn the DV
+        features in two streams and learn the fusion at the same time. Here the
+        streams begin at the converged DV single-modality solutions instead:
+
+            IR  backbone layers 0..8   <- ir_ckpt layers 0..8   (unchanged ids)
+            RGB backbone layers 0..8   <- rgb_ckpt layers 0..8  (ids + 9)
+            neck + head   layers 9..   <- ir_ckpt layers 9..    (ids + 12)
+            fuse modules 18..20        <- fresh init (gated, ~identity to IR)
+
+        The neck/head come from the IR checkpoint because the fuse modules
+        initialise as a near-zero residual: at step 0 the fused features are
+        ~= the IR features, which is exactly the stream the IR neck/head was
+        trained on. Both source stems are 3-channel (E00's IR stem was
+        grayscale-adapted at its own init), so the copy is shape-exact.
+        """
+        n_bk = 9
+        off = 2 * n_bk + 3 - n_bk  # neck index shift (12)
+
+        def sd_of(path: str):
+            ck = torch.load(path, map_location="cpu", weights_only=False)
+            m = ck.get("ema") or ck.get("model")
+            if m is None:
+                raise ValueError(f"{path}: no 'ema'/'model' entry")
+            if not isinstance(m, nn.Module):
+                m = m["model"]
+            return m.float().state_dict()
+
+        cur = self.state_dict()
+        new: dict = {}
+
+        def take(sd, target_of):
+            for k, v in sd.items():
+                parts = k.split(".")
+                if len(parts) < 2 or parts[0] != "model":
+                    continue
+                try:
+                    i = int(parts[1])
+                except ValueError:
+                    continue
+                tgt = target_of(i)
+                if tgt is None:
+                    continue
+                key = f"model.{tgt}." + ".".join(parts[2:])
+                if key in cur and cur[key].shape == v.shape:
+                    new[key] = v.clone()
+
+        sd_ir = sd_of(ir_ckpt)
+        sd_rgb = sd_of(rgb_ckpt)
+        # IR: backbone stays at its own ids; neck/head shift to the dual layout
+        take(sd_ir, lambda i: i if i < n_bk else i + off)
+        # RGB: backbone only, mapped into the second stream
+        take(sd_rgb, lambda i: n_bk + i if i < n_bk else None)
+
+        missing, unexpected = self.load_state_dict(new, strict=False)
+        # The fuse modules (and only they) must be absent from `new`.
+        fuse_keys = {k for k in cur if k.split(".")[1] in {"18", "19", "20"}}
+        copied_fuse = sum(1 for k in new if k in fuse_keys)
+        report = {"copied": len(new), "missing": len(missing),
+                  "unexpected": len(unexpected),
+                  "fuse_tensors_copied": copied_fuse,
+                  "fuse_tensors_total": len(fuse_keys)}
+        assert copied_fuse == 0, "warm-start must not touch the fuse modules"
+        print(f"[gfyolo] warm-start: IR<-{Path(ir_ckpt).name} "
+              f"RGB<-{Path(rgb_ckpt).name}: copied {len(new)} tensors "
+              f"(fuse untouched: {len(fuse_keys)} tensors fresh); "
+              f"missing={len(missing)} unexpected={len(unexpected)}")
+        return report
+
+    def fuse_alpha(self) -> float:
+        """Fuse engagement in [0, 1] for the warm-up schedule.
+
+        Pure function of `_fuse_epoch`, which the trainer sets on the model and
+        on its EMA copy at the start of every epoch -- otherwise the EMA would
+        keep a stale epoch and validation would silently bypass the fuse.
+
+        Returns 1.0 when no warm-up is configured, and also when the epoch is
+        unknown: an unknown state must never silently disable fusion.
+        """
+        if getattr(self, "fuse_warmup_epochs", 0) <= 0:
+            return 1.0
+        ep = getattr(self, "_fuse_epoch", None)
+        if ep is None:
+            return 1.0
+        if ep < self.fuse_warmup_epochs:
+            return 0.0
+        return min(1.0, (ep - self.fuse_warmup_epochs + 1)
+                   / max(1, getattr(self, "fuse_ramp_epochs", 1)))
+
     def _predict_once(self, x, profile=False, embed=None):
         """Stock interpreter with two entry points (IR at 0, RGB at _rgb_entry).
 
@@ -157,6 +260,7 @@ class GFYOLO(DetectionModel):
         if not getattr(self, "_assembled", False):
             return super()._predict_once(x, profile, embed)
         assert not profile and not embed, "profile/embed not supported"
+        alpha = self.fuse_alpha()
         y, cur = [], None
         for m in self.model:
             i = m.i
@@ -189,6 +293,12 @@ class GFYOLO(DetectionModel):
                     if a.dtype == torch.float16:
                         cur = torch.nan_to_num(cur, nan=0.0, posinf=65000.0, neginf=-65000.0)
                     cur = cur.to(a.dtype)
+                if alpha < 1.0:
+                    # Warm-up: alpha == 0 returns f_ir untouched (bit-identical
+                    # to the IR-only path), otherwise the fuse contribution is
+                    # scaled in. Blending works for residual rungs (f_ir + d ->
+                    # f_ir + alpha*d) and for direct rungs alike.
+                    cur = a if alpha == 0.0 else a + alpha * (cur - a)
                 y.append(cur if i in self.save else None)
                 continue
             elif m.f != -1:

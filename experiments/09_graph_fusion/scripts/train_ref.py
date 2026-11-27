@@ -27,6 +27,8 @@ def main() -> None:
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--no-aug", action="store_true",
+                    help="disable all augmentation: matched-recipe control for the paired ladder")
     args = ap.parse_args()
 
     from ultralytics import YOLO
@@ -60,6 +62,11 @@ def main() -> None:
         deterministic=True,
         val=True,
         cache=False,
+        **({} if not args.no_aug else dict(
+            mosaic=0.0, close_mosaic=0, mixup=0.0, cutmix=0.0,
+            copy_paste=0.0, erasing=0.0, fliplr=0.0, flipud=0.0,
+            hsv_h=0.0, hsv_s=0.0, hsv_v=0.0, degrees=0.0, shear=0.0,
+            perspective=0.0, translate=0.0, scale=0.0, multi_scale=0.0)),
     )
     dt = time.time() - t0
 

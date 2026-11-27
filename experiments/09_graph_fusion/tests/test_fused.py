@@ -53,6 +53,33 @@ def _fixed_rand(value: float):
     return _rand
 
 
+def test_gat_runtime_caches_not_pickled():
+    """Checkpoint pickles must not carry device-tagged runtime caches.
+
+    Regression (2026-11-23, E35 exit-time eval): the pickled table cache was
+    keyed (H, W, cuda:0) but reloaded to CPU by map_location, so the next
+    forward mixed CPU tables with CUDA features. Caches must be dropped on
+    pickle and rebuilt lazily.
+    """
+    import pickle
+    import torch
+    from testbed_gfyolo.fuse_modules import FuseGATLocal
+
+    m = FuseGATLocal(C=4, d=8, r=1)
+    m._tables(4, 4, torch.device("cpu"))
+    m.last_delta = torch.zeros(1)
+    m2 = pickle.loads(pickle.dumps(m))
+    assert m2._table_cache == {}
+    assert m2.last_delta is None
+    # stale-device entries are rebuilt on demand
+    if torch.cuda.is_available():
+        dev = torch.device("cuda:0")
+        cpu_tbl = m._tables(4, 4, torch.device("cpu"))
+        m._table_cache[(4, 4, dev)] = dict(cpu_tbl)
+        tbl = m._tables(4, 4, dev)
+        assert tbl["src"].device.type == "cuda"
+
+
 def test_sanitize_bn_buffers_resets_poisoned_stats():
     """A transient inf forward must not permanently poison BN running stats.
 

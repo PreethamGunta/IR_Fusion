@@ -62,12 +62,57 @@ class GFTrainer(DetectionTrainer):
     paired_rot90: bool = False
     fuse: str = "E10"
     fuse_kwargs: dict | None = None
+    fuse_warmup_epochs: int = 0
+    fuse_ramp_epochs: int = 1
+    init_ir: str | None = None   # DV-trained IR-only checkpoint (warm start)
+    init_rgb: str | None = None  # DV-trained RGB-only checkpoint (warm start)
     _bn_warned: set = set()
+    _nonfinite: int = 0
+
+    def preprocess_batch(self, batch):
+        """Apply the fuse warm-up schedule before every training forward.
+
+        `alpha` is a pure function of the epoch. `on_train_epoch_start` is a
+        *callback event* in this Ultralytics version, not an overridable
+        method, so the epoch is stamped here (two attribute writes per batch),
+        which cannot be missed.
+
+        The EMA copy needs the same value: EMA is refreshed through
+        `state_dict()` only, so its `_fuse_epoch` would otherwise stay at 0 and
+        every validation would run with the fuse silently bypassed.
+        """
+        ep = int(getattr(self, "epoch", 0))
+        for m in (self.model, getattr(getattr(self, "ema", None), "ema", None)):
+            if m is not None and hasattr(m, "fuse_warmup_epochs"):
+                m._fuse_epoch = ep
+        return super().preprocess_batch(batch)
 
     def optimizer_step(self):
         # sanitize BEFORE super() so the EMA never absorbs a poisoned buffer
         sanitize_bn_buffers(self.model, self._bn_warned)
+        self._guard_nonfinite_loss()
         super().optimizer_step()
+
+    def _guard_nonfinite_loss(self):
+        """Abort a diverged run before the epoch-end save overwrites last.pt.
+
+        A run that has gone non-finite would otherwise keep training (and keep
+        overwriting the last usable checkpoint) for hours. The threshold is
+        deliberately high: a single transient non-finite step is already
+        contained by the BN sanitiser and the fuse clamps, and must not kill a
+        healthy run.
+        """
+        loss = getattr(self, "loss", None)
+        if loss is not None and not bool(torch.isfinite(
+                torch.as_tensor(loss)).all()):
+            n = int(getattr(self, "_nonfinite", 0)) + 1
+            self._nonfinite = n
+            if n >= 20:
+                raise SystemExit(
+                    "non-finite loss for 20 consecutive steps: aborting before "
+                    "the checkpoint is overwritten (last good epoch kept)")
+        else:
+            self._nonfinite = 0
 
     def validate(self):
         # sanitize the EMA's BN stats before validation: a transient
@@ -83,11 +128,15 @@ class GFTrainer(DetectionTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):
         model = GFYOLO(self.model_cfg, nc=self.data["nc"], ch=6,
                        fuse=self.fuse, fuse_kwargs=self.fuse_kwargs,
+                       fuse_warmup_epochs=self.fuse_warmup_epochs,
+                       fuse_ramp_epochs=self.fuse_ramp_epochs,
                        verbose=verbose)
         if hasattr(self, "set_model_names_for_load"):
             model = self.set_model_names_for_load(model)
         if weights is not None:
             model.load_pretrained(weights)
+        if self.init_ir and self.init_rgb:
+            model.load_stream_warmstart(self.init_ir, self.init_rgb)
         return model
 
     def get_validator(self):
@@ -98,11 +147,10 @@ class GFTrainer(DetectionTrainer):
         )
 
     def build_dataset(self, img_path: str, mode: str = "train", batch: int | None = None):
+        from gfdata.unified import make_dataset as make_unified
         split = mode if mode in ("train", "val", "test") else "train"
-        return make_paired_dataset(
-            self.paired_yaml, self.rgb_yaml, split,
-            mode=mode, imgsz=self.args.imgsz, batch=batch or self.args.batch,
-            cache=self.args.cache or None,
-            paired_augment=(mode == "train"),
-            paired_rot90=self.paired_rot90,
+        return make_unified(
+            self.paired_yaml, split, modality="pair", mode=mode,
+            imgsz=self.args.imgsz, batch=batch or self.args.batch,
+            cache=self.args.cache or None, rgb_yaml=self.rgb_yaml,
         )

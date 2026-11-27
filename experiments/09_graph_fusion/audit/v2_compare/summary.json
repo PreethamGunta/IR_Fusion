@@ -1,0 +1,189 @@
+{
+  "generated_utc": "2026-11-24T03:42:06Z",
+  "data": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/configs/dronevehicle_v2_ir.yaml",
+  "rgb_yaml": "/home2/home/preetham_g/gate_ir_release/experiments/09_graph_fusion/configs/dronevehicle_v2_rgb.yaml",
+  "indices": [
+    0,
+    1
+  ],
+  "seeds": [
+    0
+  ],
+  "all_v2_ir_equals_stock": true,
+  "all_pair_ir_half_equals_stock": true,
+  "v1_available": true,
+  "rows": [
+    {
+      "index": 0,
+      "seed": 0,
+      "im_file": "00001.jpg",
+      "stock": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 165.9679,
+        "std": 55.3252,
+        "per_channel_mean": [
+          165.9679,
+          165.9679,
+          165.9679
+        ]
+      },
+      "v2_ir": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 165.9679,
+        "std": 55.3252,
+        "per_channel_mean": [
+          165.9679,
+          165.9679,
+          165.9679
+        ]
+      },
+      "v2_pair_ir_half": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 165.9679,
+        "std": 55.3252,
+        "per_channel_mean": [
+          165.9679,
+          165.9679,
+          165.9679
+        ]
+      },
+      "n_boxes": 14,
+      "checks": {
+        "v2_ir_equals_stock_img": true,
+        "v2_ir_equals_stock_boxes": true,
+        "pair_ir_half_equals_stock_img": true,
+        "pair_ir_half_equals_stock_boxes": true,
+        "pair_channels": 6,
+        "v1_mean_abs_diff_vs_stock": 59.4779,
+        "v1_max_abs_diff_vs_stock": 255,
+        "v1_pixels_differ_pct": 99.28
+      },
+      "v1_ir": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 154.3696,
+        "std": 51.4044,
+        "per_channel_mean": [
+          154.3696,
+          154.3696,
+          154.3696
+        ]
+      },
+      "v1_n_boxes": 24,
+      "png": "audit/v2_compare/png/idx0_seed0.png"
+    },
+    {
+      "index": 1,
+      "seed": 0,
+      "im_file": "00002.jpg",
+      "stock": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 155.8393,
+        "std": 63.0749,
+        "per_channel_mean": [
+          155.8393,
+          155.8393,
+          155.8393
+        ]
+      },
+      "v2_ir": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 155.8393,
+        "std": 63.0749,
+        "per_channel_mean": [
+          155.8393,
+          155.8393,
+          155.8393
+        ]
+      },
+      "v2_pair_ir_half": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 155.8393,
+        "std": 63.0749,
+        "per_channel_mean": [
+          155.8393,
+          155.8393,
+          155.8393
+        ]
+      },
+      "n_boxes": 13,
+      "checks": {
+        "v2_ir_equals_stock_img": true,
+        "v2_ir_equals_stock_boxes": true,
+        "pair_ir_half_equals_stock_img": true,
+        "pair_ir_half_equals_stock_boxes": true,
+        "pair_channels": 6,
+        "v1_mean_abs_diff_vs_stock": 64.1206,
+        "v1_max_abs_diff_vs_stock": 254,
+        "v1_pixels_differ_pct": 99.35
+      },
+      "v1_ir": {
+        "shape": [
+          3,
+          640,
+          640
+        ],
+        "dtype": "torch.uint8",
+        "min": 0.0,
+        "max": 255.0,
+        "mean": 154.3696,
+        "std": 51.4044,
+        "per_channel_mean": [
+          154.3696,
+          154.3696,
+          154.3696
+        ]
+      },
+      "v1_n_boxes": 24,
+      "png": "audit/v2_compare/png/idx1_seed0.png"
+    }
+  ]
+}

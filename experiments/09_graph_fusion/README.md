@@ -1,9 +1,15 @@
 # Experiment 09 — Graph-Based RGB-IR Fusion
 
-**Status: active.** The reference tier (E00–E03) is complete with locked test
-results; in the fusion ladder (E10–E35), E30 (val 0.2521, ladder leader) and
-E21 (0.2258) are complete, E35 is training with the remaining rungs queued
-behind it. Numbers are in [RESULTS.md](RESULTS.md).
+**Status: complete (single seed).** The V1 data-loader defect was isolated and
+fixed (V2 pipeline); the reference tier (E00–E03), the 10-epoch screen, and the
+full-data flagship tier are complete. Under a matched recipe, **WG-Fusion
+(E30, window-graph GAT) is the best single model on the locked 8,980-image test
+set: 0.5988 AP, +2.08 pp over IR-only (paired-bootstrap 95 % CI
+[+1.71, +2.42]) and +0.59 pp over concat fusion (CI [+0.25, +0.89], i.e.
+significant).** Two-hop depth (E41), capacity (d=192), semantic-kNN edges (E35)
+and warm-started fine-tuning are neutral or negative. Full narrative, figures
+and tables: [REPORT_V0.md](REPORT_V0.md); paper draft in
+[paper/](paper/); numbers in [RESULTS.md](RESULTS.md) and §5.2 below.
 
 ## 1. Motivation and objectives
 
@@ -18,8 +24,21 @@ This experiment isolates the question:
 
 > Does a **graph formulation** of cross-modal interaction — where feature-map
 > positions are nodes and messages flow along selected edges across modalities —
-> beat simple fusion and attention fusion *under matched capacity, data, recipe
-> and seed*?
+> beat simple fusion and attention fusion under a matched data/recipe budget?
+
+**Outcome (2026-11-27).** The ⅓-data screening tier turned out to be
+pipeline-invalid: every fused rung collapsed to 0.14–0.25 while the *IR-only*
+control collapsed as well (0.183), isolating a defect in the superseded V1
+data loader. The V2 loader reproduces the stock IR path bit-identically, and the
+question above was re-asked at full data with E00's exact recipe:
+
+> At matched budget, mid-level fusion improves the locked test AP by
+> **+1.5–2.1 pp** over IR-only, and the **window graph significantly beats
+> concat fusion (+0.59 pp, CI excludes zero)**. Graph depth, graph width,
+> semantic edges and warm-started fine-tuning are neutral or negative.
+
+The ladder design below is retained for history; the answered experiment is
+§5.2.
 
 Sub-goals:
 
@@ -103,19 +122,19 @@ references, `E1x` = simple fusion, `E2x` = attention, `E3x`–`E4x` = graph.
 
 | ID | Run name | `Fuse` module | What it changes vs. parent | Status |
 |---|---|---|---|---|
-| **E10** | `e10_screening` | concat + 1×1 conv at P3–P5 | ladder base (learned simple fusion) | queued (stage 4, auto-resume ep17) |
+| **E10** | `e10_screening` | concat + 1×1 conv at P3–P5 | ladder base (learned simple fusion) | **complete: 0.2403 (ep99)** |
 | E11 | — | elementwise add, fixed weights | no learned mixing | planned |
 | E12 | — | channel-softmax modality gate | per-channel trust | planned |
 | E13 | — | channel + spatial softmax gates | IV-PAFNet MSFA-style port | planned |
-| **E14** | `e14_screening` | IR-anchored residual `f_ir + sigmoid(g)·conv([f_ir,f_rgb])`, negative-bias gate | starts as IR-only, learns corrections | queued (stage 4, fresh) |
+| **E14** | `e14_screening` | IR-anchored residual `f_ir + sigmoid(g)·conv([f_ir,f_rgb])`, negative-bias gate | starts as IR-only, learns corrections | **complete: 0.2438 (ep94)** |
 | E15 | — | E13 + visible-guided deformable alignment | misregistration fix | planned |
 | E20 | — | one-directional cross-attention (IR←RGB) | attention baseline | planned |
-| **E21** | — | bidirectional cross-attention, block-shared Q/K/V | DMFF-style attention representative | **complete: best val 0.2258 (ep87)** |
+| **E21** | `e21_screening` | bidirectional cross-attention, block-shared Q/K/V | DMFF-style attention representative | **complete: 0.2258 (ep87)** |
 | E22 | — | intra-modal self-attention, capacity-matched to E21 | control: no cross-modal path | conditional |
-| **E30** | — | GAT on grid + cross-modal window edges (IR←RGB) | first graph rung | **complete: best val 0.2521 (ep100), leads the ladder** |
+| **E30** | `e30_screening` | GAT on grid + cross-modal window edges (IR←RGB) | first graph rung | **complete: 0.2521 (ep100)** — no rung separable (§5.1) |
 | E31–E33 | — | GCN / GraphSAGE / GATv2+edge features | operator swaps | planned |
 | E34 | — | bidirectional graph messages | refinement | planned |
-| **E35** | — | E30 + semantic-kNN cross-modal edges | the core novelty | running (stage 2, fresh, BN-stat watchdog) |
+| **E35** | `e35_screening` | E30 + semantic-kNN cross-modal edges | the core novelty | **complete: 0.2329 (ep99)** |
 | E36–E37 | — | cross-scale edges; typed edge weights | refinements | planned |
 | E38 | — | connectivity sweep (`r`, `R`, `k`, sparse/dense) | tuning | planned |
 | E39–E41 | — | residual vs direct output; gate type; fusion placement | ablations | planned |
@@ -124,6 +143,92 @@ references, `E1x` = simple fusion, `E2x` = attention, `E3x`–`E4x` = graph.
 Promotion rule: a rung is promoted only if its test mAP50-95 gain over its
 parent exceeds the pre-registered threshold (**0.5 pp** under the single-seed
 protocol), confirmed by a paired image-level bootstrap on the locked test set.
+
+### 5.1 Screening-tier results (⅓ train, 100 epochs, training-time val)
+
+All five rungs ran on the same ⅓-train subset
+(`configs/dronevehicle_v2_paired_screening.yaml`), with the same augmentation
+knobs (mosaic 1.0, close_mosaic 10, scale 0.5, hsv_v 0.4, fliplr 0.5, erasing
+0.4), batch 16, seed 0, 100 epochs, and the same auto-resolved optimizer
+(AdamW, lr 1.11e-3, 3 parameter groups).
+
+| Run | Arm | Best val mAP50-95 | Best ep | mAP50 | Params | State |
+|---|---|---:|---:|---:|---:|---|
+| `e00_ir_screening` | IR-only control, native recipe | **0.5625** | 51 | 0.7793 | 9.26 M | complete (early stop at ep81) |
+| `e00_ir_noaug_screening` | IR-only, augmentation disabled | 0.4451 | 15 | 0.6533 | 9.26 M | partial (32 ep, no DONE marker) |
+| `e10_screening` | E10 concat + 1×1 conv | 0.2403 | 99 | 0.4173 | 15.49 M | complete |
+| `e14_screening` | E14 IR-anchored gated residual | 0.2438 | 94 | 0.4399 | 16.28 M | complete |
+| `e21_screening` | E21 bidirectional cross-attention | 0.2258 | 87 | 0.4121 | 16.95 M | complete |
+| `e30_screening` | E30 window-graph GAT | **0.2521** | 100 | 0.4386 | 15.35 M | complete |
+| `e35_screening` | E35 semantic-kNN graph | 0.2329 | 99 | 0.4230 | — | complete |
+
+**What the tier supports.** Rung-vs-rung comparison is valid *within* the tier:
+identical data subset, augmentation knobs, schedule, batch, seed and resolved
+optimizer — the only intended difference is the `Fuse` module. The designs are
+statistically indistinguishable: the largest gap (E30−E21 = 2.6 pp, E30−E14 =
+0.83 pp) is inside the 1.4–3.7 pp spread measured between repeats of the same
+configuration, with one seed and no confidence interval. The defensible
+statement is therefore "**all five mid-level fusion designs land at 0.23–0.25
+in this tier**", not a ranking. Execution histories are not uniform (E21
+resumed at ep47; E10/E30/E35 are resume splices; E35's first 95 epochs are
+unlogged), so this tier is a screening filter, not a controlled experiment.
+
+**What it cannot support.** (a) Any comparison with §3: the ⅓-data runs
+resolved AdamW (lr 1.11e-3) where the full-train runs resolved MuSGD (lr 1e-2),
+so a scale-up would change the optimizer as well as the data. (b) Any claim
+about the size of the fusion penalty: the same-subset IR control is 31 pp above
+the best rung, but that control used the native augmentation while the rungs
+used the paired pipeline, so the gap is pipeline-confounded. The unified
+full-data tier (§10) exists to separate those two causes.
+
+### 5.2 Full-data results — WG-Fusion (matched recipe, locked test)
+
+All arms: full 17,962 training pairs, E00's resolved recipe (lr0 0.01, lrf
+0.01, momentum 0.937, batch 16 with accumulation to nbs 64, close_mosaic 10,
+patience 30, seed 0), single seed. Test = locked 8,980-image split, never used
+for selection (locks in `results/LOCK_*.json`, created before any test
+prediction); CIs = paired image-level bootstrap.
+
+| Arm | val mAP50-95 (best ep) | test AP | AP50 | APs | APm | APl | ΔAP vs IR (95 % CI) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| IR-only (E00) | 0.6306 (55) | 0.5783 | 0.7628 | 0.1866 | 0.5750 | 0.6298 | — |
+| concat + 1×1 (E10) | **0.6538 (46)** | 0.5931 | 0.7754 | 0.2381 | 0.5912 | 0.5904 | +1.49 pp [+1.02, +1.90] |
+| **WG-Fusion (E30)** | 0.6484 (63) | **0.5988** | **0.7819** | 0.2336 | **0.5951** | 0.6245 | **+2.08 pp [+1.71, +2.42]** |
+| 2 hops (E41) | 0.6471 (55) | 0.5969 | 0.7784 | **0.2388** | 0.5939 | 0.6181 | +1.83 pp [+1.44, +2.19] |
+| semantic-kNN (E35) | 0.6471 (48) | 0.5943 | 0.7770 | 0.2273 | 0.5921 | 0.6217 | +1.60 pp [+1.23, +1.97] |
+| d=192 (capacity) | 0.6476 (39) | 0.5914 | 0.7760 | 0.2364 | 0.5881 | 0.6231 | +1.33 pp [+0.91, +1.67] |
+
+Key paired contrasts: **WG-Fusion − concat = +0.591 pp [+0.247, +0.892],
+P = 1.000**; 2 hops − WG-Fusion = −0.250 pp [−0.594, +0.036] (n.s.);
+d=192 − WG-Fusion = **−0.745 pp [−1.054, −0.428]** (significantly worse);
+E35 − concat = +0.100 pp [−0.261, +0.473] (n.s.).
+
+**Ablation reading.** Depth helps small objects (best APs 0.2388) but not the
+mean; capacity hurts on test despite an equal val score (a val-selection
+warning); semantic edges are neutral; warm-started fine-tuning (streams
+initialised from E00/E01, 50 ep at lr 0.002) peaks at 0.6217 val, far below
+from-scratch. The graph formulation, not its hyper-parameters, carries the gain.
+
+**Scale trade-off.** Concat buys the largest small-object gain but loses
+large-object AP (0.5904 vs IR 0.6298); the graph arms gain nearly as much on
+small objects while preserving large ones. WG-Fusion improves every band
+(APs +4.71, APm +2.01, APl ≈ flat).
+
+**SOTA context (1,469 split, as reported by HyperDet's single-protocol table,
+2026).** WG-Fusion reaches 85.8/64.8 mAP50/50-95, above every 2023–2025 entry
+including C2DFF-Net (85.7/65.2) and 0.5–1.7 pp behind the Feb-2026 hypergraph
+frontier (HyperDet 86.4/65.9 and 87.5/67.1). The IR-only baseline alone matches
+most published *fused* methods through 2024, so the controlled Δ over IR-only
+is the meaningful number. Prior-work values, venues and protocol caveats:
+[REPORT_V0.md](REPORT_V0.md) §5.3.
+
+**Inference-time ensembles (post-hoc WBF, fixed defaults, no training).**
+concat+WG+semantic = 0.6211 AP / 0.8072 AP50; WG+semantic = 0.6128 / 0.7983.
+
+**Seeds.** Single seed (seed 0) for all reported numbers. A seed-1 run of
+WG-Fusion reached 0.64875 best val at ep45 (vs 0.64838 for seed 0) before being
+stopped for compute priority — encouraging but anecdotal; multi-seed reporting
+is the main remaining robustness item.
 
 ## 6. Baselines and comparisons
 
@@ -317,22 +422,34 @@ numbers are recorded in [RESULTS.md](RESULTS.md).
 
 ## 10. Current status
 
-- **Reference tier complete** with locked test numbers (see table above).
-- **GF-YOLO testbed** implemented, reviewed and unit-tested (77 tests); dual-
-  stream model integrated and smoke-tested (forward/backward, strides,
-  parameter counts).
-- **E10** completed its 100-epoch screening run: best validation mAP50-95
-  0.2174 at epoch 87 on the ⅓-train subset (training protocol; not comparable
-  to the full-train references), with a late-training collapse at epoch 100 to
-  be diagnosed. **E14** is training on the same subset (best 0.1931 at the last
-  recorded epoch, still improving). No ladder rung has a locked-test result.
-- **E21, E30, E35, E22** pending; FLIR-aligned runs pending the DroneVehicle
-  ladder.
-- Paired image bootstrap on finalists pending.
+- **Reference tier complete** with locked test numbers (§3); audited and
+  reproducible (locks, checkpoints, predictions and GT hashes all match).
+- **V1 screening tier invalidated**: every arm (including IR-only) collapsed
+  under the superseded loader (0.14–0.25); the defect is documented and the V2
+  loader reproduces the stock IR path bit-identically (§2, §5.1 retained for
+  history).
+- **Full-data flagship tier complete (single seed)**: WG-Fusion (E30) is the
+  best single model on the locked test — **0.5988 AP, +2.08 pp vs IR-only,
+  +0.59 pp vs concat (both CIs exclude zero)**; see §5.2 and
+  [REPORT_V0.md](REPORT_V0.md).
+- **Ablations complete**: two-hop depth (E41, 0.5969), capacity d=192 (0.5914,
+  significantly worse), semantic edges (E35, 0.5943) and warm-started
+  fine-tuning (0.6217 val) are neutral or negative; `r=2` is memory-infeasible
+  at batch 16.
+- **Paper draft** in [paper/](paper/) (CVPR style, figures generated from run
+  artifacts by `paper/make_figures.py`).
+- **Remaining:** multi-seed reporting (seed-1 partially run: 0.64875 val at
+  ep45), qualitative figures (attention / Δ maps, confusion matrices,
+  day-night examples), cross-scale edges for the small-object headroom,
+  multi-dataset validation (FLIR-aligned, VEDAI), and the E22 capacity control.
 
 ## 11. Documentation links
 
 - [Results](RESULTS.md) — datasets, protocol, locked test tables, oracle.
+- [Report v0](REPORT_V0.md) — complete narrative of the answered experiment
+  (abstract → method → results → SOTA comparison → limitations), with figures.
+- [Paper draft](paper/main.tex) — CVPR-style manuscript; figures are generated
+  from run artifacts by `paper/make_figures.py`.
 - [Experiment plan](EXPERIMENT_PLAN.md) — full design, gates, ladder definitions.
 - [Provenance](PROVENANCE.md) — external repositories, dataset sources, code
   provenance.

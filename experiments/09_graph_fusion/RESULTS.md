@@ -112,9 +112,8 @@ scaling) was chosen on a 12-configuration validation grid
 ## 4. Complementarity oracle
 
 Per-GT-object analysis on the validation split: is each object detected by IR
-only, RGB only, both, or neither (IoU ≥ 0.5, score thresholds fixed on val by
-max-F1: IR 0.50, RGB 0.45). Day/night split uses the median train-set RGB
-luminance. Source: `results/oracle_dv_val.json`.
+only, RGB only, both, or neither (IoU ≥ 0.5). Day/night split uses the median
+train-set RGB luminance. Source: `results/oracle_dv_val.json`.
 
 | Segment | Recall IR | Recall RGB | Best-of-either | Oracle gain |
 |---|---:|---:|---:|---:|
@@ -126,32 +125,68 @@ luminance. Source: `results/oracle_dv_val.json`.
 Validation objects: 18,767 detected by both modalities, 3,712 IR-only, 778
 RGB-only, 1,233 by neither.
 
-**Interpretation.** Up to 3.2 pp of detection recall is recoverable overall and
-6.7 pp on small objects — the complementarity is real. RGB matches IR in
-daylight (0.913 vs 0.916) and degrades sharply at night (0.707). Neither E02
-nor E03 captures this headroom in mAP50-95, which motivates the mid-level
-fusion ladder, especially at P3 for small objects.
+**Threshold dependence (audit 2026-11-23).** The table reproduces the
+artifact's max-F1 thresholds, **IR 0.55 / RGB 0.40** — not the 0.50 / 0.45
+quoted in the earlier text. At the documented 0.50 / 0.45 the overall gain is
+**+2.41 pp**; with matched thresholds it is **+1.67–2.29 pp**. The small-object
+gain is +6.73 pp at (0.55, 0.40), **+4.50** at (0.50, 0.45), and +2.83–2.90 pp
+at matched thresholds. The asymmetric thresholds inflate the gain by lowering
+the IR baseline, so the earlier "+3.18 / +6.73" figures must not be quoted as
+the method's result.
+
+**What the oracle does not show.** It measures single-threshold
+**recall@IoU0.5**, not mAP50-95 headroom; the RGB member is trained on visible
+labels but scored on thermal GT, so part of the RGB-only recall is
+annotation-policy disagreement rather than modality complementarity; and
+"day/night" is a luminance median split of val, not true day vs night.
+
+**Interpretation (corrected).** A modest, threshold-dependent complementarity
+exists — about **1.7–2.4 pp overall and 2.8–4.5 pp on small objects** — with
+RGB matching IR in bright scenes and degrading in dark ones. That is the
+motivation for mid-level fusion, and it is the honest size of the headroom.
 
 ## 5. Fusion ladder — preliminary screening results
 
-Screening runs use the ⅓-train subset (6,000 frames), paired augmentation and
-100 epochs, selecting on the official validation split with the **training-time**
-validation protocol. These numbers are therefore **not comparable** to the
-full-train references in §3, and no locked-test number exists for a ladder rung
-yet.
+Screening runs use the ⅓-train subset (6,000 frames), 100 epochs, and the
+training-time validation protocol. **This tier is not comparable to the
+full-train references in §3** — for data volume, for a silent optimizer switch
+and for the absence of a matched same-pipeline control (all documented below).
+The table is a within-tier ranking only.
 
 | Run | Method | Status | Best val mAP50-95 (ep) | Note |
 |---|---|---|---:|---|
-| E10 | concat + 1×1 at P3–P5 | rerunning (stage 2, auto-resume ep17) | salvaged pre-collapse 0.2258 (ep80) | two earlier attempts invalid: `*_INVALID_ampcollapse`, `*_INVALID_close_mosaic`; the ep≤90 trajectory is valid (identical to the fixed code), final 10 epochs lost |
-| E14 | IR-anchored gated residual | rerunning (stage 2, fresh) | salvaged pre-collapse 0.2068 (ep80) | same failure history as E10 (`e14_screening_INVALID_close_mosaic`) |
+| E10 | concat + 1×1 at P3–P5 | **complete** | **0.2403** (ep99) | two earlier attempts invalid (`*_INVALID_ampcollapse`, `*_INVALID_close_mosaic`); same-config repeats differ by 1.4 pp |
+| E14 | IR-anchored gated residual | **complete** | **0.2438** (ep94) | same failure history as E10; run-to-run spread across attempts 3.7 pp |
 | E21 | bidirectional cross-attention | **complete** | **0.2258** (ep87) | resumed from the ep46 pre-collapse checkpoint; crossed ep91 healthy (0.2186 at ep93), final 0.2246; the half-precision final eval crashed on an fp16 fuse-delta overflow (see below), fixed and DONE formalised |
 | E22 | capacity-matched self-attention control | conditional on E21 > E14 | — | — |
 | E30 | GAT, grid + cross-modal window edges | **complete** | **0.2521** (ep100) | first rung with a completed evaluation; crossed ep91 healthy (0.2460 at ep92) after the `close_mosaic` fix, still climbing at ep100 |
-| E35 | E30 + semantic-kNN edges | running (attempt 4, hardened) | — | attempt 1 invalid (`INVALID_batch8oom`); attempt 2 invalid (`INVALID_ep3_val_nan`, see BN-poisoning bullet); attempt 3 aborted at ~ep3 for the fuse-hardening fix (`PARTIAL_ep3`) |
+| E35 | E30 + semantic-kNN edges | **complete** | **0.2329** (ep99) | crossed ep91 healthy (0.2127 at ep92), climbed steadily to ep99; +0.7 pp over E21, **−1.9 pp vs E30** — the semantic-kNN novelty does not beat the window-graph design in screening. Attempts 1–3 invalid/partial (`INVALID_batch8oom`, `INVALID_ep3_val_nan`, `PARTIAL_ep3`); exit-eval crashed on a pickled table-cache device mismatch, fixed and DONE formalised |
 
-The screening-subset level (≈0.22 vs 0.50 for E02 on full train) is consistent
-with training on one third of the data. Three failure modes were diagnosed and
-closed along the way (2026-11-22):
+**What this tier can and cannot support (audit 2026-11-23).**
+
+- **"⅓ data explains ≈0.22" is refuted by our own controls.** IR-only on the
+  same subset scores **0.5625** with the native recipe (`e00_ir_screening`)
+  and **0.4451 at ep15** with augmentation disabled
+  (`e00_ir_noaug_screening`) — 19–31 pp above the best fused rung. Data
+  volume alone does not account for the gap.
+- **A silent optimizer switch separates the tiers.** `optimizer=auto` gives
+  AdamW (lr 1.11e-3, 3 parameter groups) for 6,000-image runs and MuSGD
+  (lr 1e-2, 8 groups, 3× head LR) for full-train runs — confirmed in every
+  `results.csv`. Screening → full-train is therefore **not** a pure scale-up,
+  and screening numbers must never be compared with §3.
+- **The rungs are statistically indistinguishable.** E30−E14 = 0.83 pp while
+  repeated runs of the same configuration differ by 1.4 pp (E10) and 3.7 pp
+  (E14); with one seed and no confidence interval, "E30 leads the ladder" is
+  not supported. The defensible statement is: **all five mid-level fusion
+  designs land at 0.23–0.25 under this tier.**
+- **Provenance is incomplete.** Several runs are resume splices (E10@18,
+  E21@48/52, E30@7, E35@96) and no run records a code SHA, so which rungs
+  share an identical code path is unknown. E35's first 95 epochs have no log.
+  The unified tier fixes this (pinned optimizer, code-state JSON per run).
+- **The matched control was missing.** E00 used the native augmentation and
+  the full-train optimizer; the new `e30_unified` uses the unified pipeline.
+  Until `e00_ir_unified` (same pipeline, same epochs) runs, the unified result
+  is reported with that caveat and nothing stronger.
 
 - **The ep91 collapse.** Both early E10/E14 attempts died at exactly ep91:
   Ultralytics' `close_mosaic` rebuilds the IR half's transforms with the
@@ -189,6 +224,15 @@ closed along the way (2026-11-22):
   propagating them (`src/gfyolo/model.py`). The *trigger* of the transient
   overflow remains undiagnosed — flagged for proper investigation if E35
   is promoted to full training.
+- **Pickled runtime caches break after checkpoint reload (E35 exit eval).**
+  The GAT fuse modules cache static graph tables keyed by
+  `(H, W, device)`; pickling them into a checkpoint and reloading with
+  `map_location='cpu'` moved the cached tensors to CPU while the key still
+  said `cuda:0`, so the next forward cache-hit mixed CPU tables with CUDA
+  features. Fix: the GAT modules now drop runtime caches on pickling
+  (`__getstate__`/`__setstate__`) and validate cached-table devices before
+  use; regression test in `tests/test_fused.py`. Verified by a finite
+  half-model forward of the completed E35 checkpoint.
 - **Half-serialized checkpoints (E10/E14/E30/E21 final evals).**
   Ultralytics' `save_model` serializes the EMA **half** — so every
   completed run's exit-time validation loads fp16 weights, and the fuse
@@ -216,3 +260,67 @@ first rung with a completed evaluation, and it leads the ladder.
   evaluation of the same experiment is refused without a logged override.
 - Dataset builders and the COCO ground-truth exporter reproduce the audited box
   counts exactly (24,490 val / 159,613 test IR boxes; 22,462 / 143,313 RGB).
+
+## 7. Flagship results — locked test (2026-11-25)
+
+Three 100-epoch arms at E00's exact recipe (thermal supervision, seed 0),
+pre-registered locks created **before** any test prediction existed:
+`results/LOCK_{e10,e30,e35}_v2_100ep.json`. Locked 8,980-image test split,
+COCO bbox evaluation; paired image-level bootstrap (500 resamples) vs E00.
+Full report: `REPORT_LOCKED_TEST_2026-11-25.md`.
+
+| Arm | test AP | AP50 | APs | APm | APl | ΔAP vs E00 | 95% CI |
+|---|---:|---:|---:|---:|---:|---:|---|
+| E00 IR-only | 0.57828 | 0.76281 | 0.18659 | 0.57503 | 0.62983 | — | — |
+| E10 concat+1×1 | 0.59309 | 0.77542 | 0.23808 | 0.59119 | 0.59042 | +1.49 pp | [+1.02, +1.90] |
+| **E30 graph GAT** | **0.59881** | **0.78188** | 0.23364 | **0.59513** | 0.62453 | **+2.08 pp** | [+1.71, +2.42] |
+| E35 semantic-kNN | 0.59429 | 0.77702 | 0.22726 | 0.59214 | 0.62172 | +1.60 pp | [+1.23, +1.97] |
+| E41 graph 2-hop | 0.59685 | 0.77844 | **0.23876** | 0.59392 | 0.61814 | +1.83 pp | [+1.44, +2.19] |
+| E30 d=192 | 0.59145 | 0.77599 | 0.23640 | 0.58806 | 0.62314 | +1.33 pp | [+0.91, +1.67] |
+
+- All three fused arms beat the IR-only reference with CIs excluding zero.
+- **E30 (the graph rung) is the best single model on the locked test set**
+  (+0.57 pp over the concat reference). On training-val the order was
+  E10 > E30 > E35 — single seed, so the graph-vs-concat gap is "at least as
+  good", not a settled ranking.
+- **Graph vs concat, paired bootstrap (300 resamples): E30 − E10 = +0.591 pp,
+  95% CI [+0.247, +0.892], P(Δ>0) = 1.000** — a significant win on the locked
+  test set. E35 − E10 = +0.100 pp [−0.261, +0.473], P = 0.717 (indistinguishable).
+- Scale trade-off: concat gains the most on small objects but loses large-
+  object AP (APl 0.5904 vs E00 0.6298); the graph arms gain nearly as much on
+  small objects while preserving large-object performance (E30: 0.6245).
+  E30 improves every scale band (APs +4.71, APm +2.01, APl ≈ flat).
+- Per-class (E30): truck 0.5953, van 0.4279, freight_car 0.4937 — leading
+  the other arms on all three.
+- Training-val numbers (best epoch): E00 0.63055, E10 0.65380, E30 0.64838,
+  E35 0.64714 mAP50-95.
+- **E41 (two-hop GAT, 80-ep run, completed 2026-11-26): val 0.64705 @ep55
+  (75 ep, early stop), mAP50 0.85841.** Depth does not beat single-hop at full
+  budget (−0.13 pp vs E30, −0.68 pp vs E10; within one-seed noise). Locked test:
+  **AP 0.59685** (+1.83 pp vs E00, CI [+1.44, +2.19]; vs E30 −0.25 pp,
+  CI [−0.59, +0.04], not significant). It has the **best small-object AP of
+  any arm (0.23876)** and the best van AP (0.4294) — depth helps tiny/rare
+  vehicles slightly but not the overall mean.
+- **E30 d=192 (capacity, 100-ep run, completed 2026-11-27): val 0.64755 @ep39,
+  mAP50 0.86189 (highest val mAP50 of the graph arms). Locked test: AP
+  0.59145 — +1.33 pp vs E00 (CI [+0.91, +1.67]) but *significantly worse than
+  E30 d=128* (−0.745 pp, CI [−1.05, −0.43], P(>0)=0.000).** Capacity is a
+  negative result on test; its val mAP50 advantage did not transfer.
+
+### Post-hoc ensembles (inference-time WBF, no extra training)
+
+Weighted-box fusion of the three arms' locked-test predictions, fixed WBF
+defaults (IoU 0.55, equal weights, one-box-per-source) — **no test-set
+tuning**, no training cost. Reported as a labelled variant, not as a trained
+model.
+
+| Ensemble | AP | AP50 | APs | APm | APl |
+|---|---:|---:|---:|---:|---:|
+| E10 + E30 + E35 | **0.62107** | 0.80717 | 0.24880 | 0.61780 | 0.65636 |
+| E30 + E35 (graph pair) | 0.61283 | 0.79834 | 0.23986 | 0.60941 | 0.65120 |
+
+Per-class (3-way): car 0.7103, truck 0.6204, bus 0.7849, van 0.4643,
+freight_car 0.5254. The ensemble is **+2.2 pp over the best single model**
+(E30 0.59881) and **+4.3 pp over E00** — expected from fusing architecturally
+diverse arms, and reported for completeness. Single-model headline remains
+E30 for the defensible claim.
