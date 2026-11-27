@@ -21,6 +21,11 @@ FILES=(
   "experiments/09_graph_fusion/results/gt/dv_v2_ir_test.json"
   "experiments/09_graph_fusion/results/preds/e00_ir_test.json"
   "experiments/09_graph_fusion/results/preds/e30_v2_100ep_test.json"
+  "experiments/09_graph_fusion/results/e00_ir_test_metrics.json"
+  "experiments/09_graph_fusion/results/e30_v2_100ep_test_metrics.json"
+  "experiments/09_graph_fusion/results/bootstrap_flagships_vs_e00.json"
+  "experiments/09_graph_fusion/runs/e00_ir/results.csv"
+  "experiments/09_graph_fusion/runs/e30_v2_100ep/results.csv"
 )
 
 check() {

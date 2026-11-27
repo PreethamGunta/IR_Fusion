@@ -26,6 +26,7 @@ STUDENTS="$REPO/models/pretrained"
 TEACHER="$E09/runs/e30_v2_100ep/weights/best.pt"
 GT="$E09/results/gt/dv_v2_ir_test.json"
 DV_ROOT="${DV_ROOT:-$E09/data/dronevehicle_v2/yolo}"
+RAW_DV="${RAW_DV:-$REPO/data/dronevehicle/raw}"
 
 STAGES="N0,N1,N2,N3,N4,N5,N6"
 JOBID=""
@@ -72,8 +73,13 @@ preflight() {
   for f in "$TEACHER" "$GT" "$STUDENTS/yolo12s.pt" "$STUDENTS/yolo12n.pt"; do
     [[ -f "$f" ]] || { say "ERROR: missing $f"; exit 1; }
   done
-  [[ -d "$DV_ROOT/ir/images/train" ]] || {
-    say "ERROR: DroneVehicle root not found: $DV_ROOT (set DV_ROOT=...)"; exit 1; }
+  if [[ ! -d "$DV_ROOT/ir/images/train" ]]; then
+    say "dataset missing at $DV_ROOT; building it from $RAW_DV (one-time)"
+    run "$PY" "$EXP/scripts/build_dv_from_raw.py" --raw "$RAW_DV" \
+      --out "$(dirname "$DV_ROOT")"
+  fi
+  (( DRY )) || [[ -d "$DV_ROOT/ir/images/train" ]] || {
+    say "ERROR: DroneVehicle build failed or DV_ROOT is wrong: $DV_ROOT"; exit 1; }
   run "$PY" scripts/make_data_configs.py --root "$DV_ROOT"
   if (( ! DRY )); then
     "$PY" - <<'EOF'
@@ -173,6 +179,7 @@ stage_N5() {
     eval_student "$n"
   done
   run "$PY" scripts/profile_students.py --out "$EXP/results/profiling_students.json"
+  run "$PY" paper/make_figures.py
   mark N5
   say "N5 done"
 }

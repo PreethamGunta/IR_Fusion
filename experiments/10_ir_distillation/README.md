@@ -109,6 +109,11 @@ training batch (6ch [IR|RGB], V2 paired loader)
 
 ## 4. Data & recipe
 
+- Dataset: `scripts/build_dv_from_raw.py` rebuilds the exact audited v2 tree
+  from `data/dronevehicle/raw` using the committed stem manifest
+  (`assets/dv_v2_splits.json`) and the verified crop + JPEG q92 recipe
+  (bit-exact against the 09 tree); the queue runs it automatically when
+  `DV_ROOT` is missing. The 5.5 GB prebuilt tree can also be copied instead.
 - Loader: `09_graph_fusion/src/gfdata/unified_v2.make_dataset_v2`
   (`*labelr` thermal labels; the V2 loader is the one verified bit-identical to
   stock IR training). **Never** the 08 dataset.
@@ -285,3 +290,21 @@ bash scripts/sync_assets.sh --to yash_gupta@<node>:/abs/path/to/IR_Fusion
 The DroneVehicle v2 YOLO trees must be at
 `experiments/09_graph_fusion/data/dronevehicle_v2/yolo` or pointed to by
 `DV_ROOT`.
+
+
+---
+
+## 12. Paper figures
+
+`paper/make_figures.py` reads whatever exists and writes `paper/figures/*.pdf|png`:
+
+| Figure | Content |
+|---|---|
+| `fig_test_ap` | locked-test AP bars (E00, E30, students) with 95 % CI |
+| `fig_kd_ablation` | 12s (E00 / decomposed / direct) and 12n (E00 / no-KD / decomposed) |
+| `fig_pareto` | AP vs A100 latency, bubble = params |
+| `fig_deltas` | paired-bootstrap ΔAP vs E00 forest plot |
+| `fig_val_curves` | val mAP50-95 curves |
+
+It runs automatically at the end of `N5`. Missing runs are skipped, so it is
+safe to call before the queue finishes.
