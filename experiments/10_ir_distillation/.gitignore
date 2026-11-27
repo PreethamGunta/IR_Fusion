@@ -1,0 +1,7 @@
+runs/
+results/
+logs/
+configs/
+__pycache__/
+*.pt
+.pytest_cache/
