@@ -166,3 +166,52 @@ def test_checkpoint_roundtrip_is_stock(student_s, tmp_path):
     with torch.no_grad():
         out = m.model(torch.zeros(1, 3, 320, 320))
     assert isinstance(out, (tuple, list))
+
+
+def test_launcher_data_defaults_are_ir():
+    """The trainer/validator must see the 3-channel IR yaml, not the paired one."""
+    src = (EXP10 / "scripts/train_student_kd.py").read_text()
+    assert 'default="configs/dv_ir.yaml"' in src
+    assert 'default="configs/dv_paired.yaml"' in src
+
+
+def test_data_yaml_channels():
+    """IR yaml is 3-channel; the paired yaml is 6-channel (loader only)."""
+    from ultralytics.data.utils import check_det_dataset
+
+    ir = EXP10 / "configs/dv_ir.yaml"
+    pair = EXP10 / "configs/dv_paired.yaml"
+    if not (ir.exists() and pair.exists()):
+        pytest.skip("generated configs not present (run make_data_configs.py)")
+    assert check_det_dataset(str(ir)).get("channels", 3) == 3
+    assert check_det_dataset(str(pair)).get("channels") == 6
+
+
+def test_three_channel_checkpoint_validates(tmp_path):
+    """A stock 3-channel student checkpoint passes YOLO(...).val() (final_eval path)."""
+    import cv2
+    import numpy as np
+    from ultralytics import YOLO
+    from ultralytics.nn.tasks import DetectionModel
+
+    model = DetectionModel("yolo12n.yaml", nc=1).float()
+    ckpt = tmp_path / "student.pt"
+    torch.save({"model": model, "train_args": {"task": "detect"}}, ckpt)
+
+    root = tmp_path / "ds"
+    (root / "images/val").mkdir(parents=True)
+    (root / "labels/val").mkdir(parents=True)
+    for i in range(2):
+        cv2.imwrite(str(root / f"images/val/{i}.jpg"),
+                    np.full((64, 64, 3), 127, np.uint8))
+        (root / f"labels/val/{i}.txt").write_text("0 0.5 0.5 0.2 0.2\n")
+    yaml = tmp_path / "ir.yaml"
+    yaml.write_text(
+        f"path: {root}\ntrain: images/val\nval: images/val\n"
+        "nc: 1\nnames: {0: car}\nchannels: 3\n"
+    )
+
+    m = YOLO(str(ckpt))
+    metrics = m.val(data=str(yaml), imgsz=64, batch=1, device="cpu",
+                    plots=False, verbose=False)
+    assert metrics is not None

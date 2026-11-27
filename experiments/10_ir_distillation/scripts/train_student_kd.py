@@ -77,7 +77,10 @@ def main() -> None:
                     default="../09_graph_fusion/runs/e30_v2_100ep/weights/best.pt")
     ap.add_argument("--kd-mode", choices=["none", "direct", "decomposed"],
                     default="decomposed")
-    ap.add_argument("--data", default="configs/dv_paired.yaml")
+    ap.add_argument("--data", default="configs/dv_ir.yaml",
+                    help="3-channel IR yaml used by the trainer/validator")
+    ap.add_argument("--paired-yaml", default="configs/dv_paired.yaml",
+                    help="6-channel yaml used only by the training loader")
     ap.add_argument("--rgb-yaml", default="configs/dv_rgb.yaml")
     ap.add_argument("--project", default="runs")
     ap.add_argument("--epochs", type=int, default=100)
@@ -121,22 +124,29 @@ def main() -> None:
     student_cfg = resolve(args.student_cfg)
     teacher_ckpt = resolve(args.teacher_ckpt)
     data_yaml = resolve(args.data)
+    paired_yaml = resolve(args.paired_yaml)
     rgb_yaml = resolve(args.rgb_yaml)
 
     for label, p in (("student", student_cfg), ("teacher", teacher_ckpt),
-                     ("data", data_yaml), ("rgb-yaml", rgb_yaml)):
+                     ("data", data_yaml), ("paired-yaml", paired_yaml),
+                     ("rgb-yaml", rgb_yaml)):
         if not p.exists():
             raise SystemExit(f"missing {label}: {p}")
 
     proj = Path(args.project)
     proj = proj if proj.is_absolute() else (EXP10 / proj)
     run_dir = proj / args.name
+    if args.fresh and run_dir.exists():
+        prev = run_dir.with_name(f"{run_dir.name}_prev_{time.strftime('%Y%m%d_%H%M%S')}")
+        run_dir.rename(prev)
+        print(f"[student_kd] --fresh: moved previous run to {prev}", flush=True)
     last = run_dir / "weights" / "last.pt"
     resume = last.exists() and not args.fresh
     lrf = args.lrf if args.lrf is not None else prefix_lrf(args.epochs)
 
     _teacher = str(teacher_ckpt)
     _rgb_yaml = str(rgb_yaml)
+    _paired_yaml = str(paired_yaml)
 
     if last.exists() and not args.fresh:
         _ck = torch.load(last, map_location="cpu", weights_only=False)
@@ -151,6 +161,7 @@ def main() -> None:
         kd_mode = args.kd_mode
         teacher_ckpt = _teacher
         rgb_yaml = _rgb_yaml
+        paired_yaml = _paired_yaml
         lambda_pres = args.lambda_pres
         lambda_comp = args.lambda_comp
         lambda_direct = args.lambda_direct
@@ -197,7 +208,8 @@ def main() -> None:
         "name": args.name, "kd_mode": args.kd_mode,
         "student_cfg": str(student_cfg), "student_sha256": sha256(student_cfg),
         "teacher_ckpt": str(teacher_ckpt), "teacher_sha256": sha256(teacher_ckpt),
-        "data": str(data_yaml), "rgb_yaml": str(rgb_yaml),
+        "data": str(data_yaml), "paired_yaml": str(paired_yaml),
+        "rgb_yaml": str(rgb_yaml),
         "epochs_requested": args.epochs, "patience": args.patience,
         "batch": args.batch, "imgsz": args.imgsz, "seed": args.seed,
         "workers": args.workers, "resumed": resume,

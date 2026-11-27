@@ -34,6 +34,7 @@ class KDDetectionTrainer(DetectionTrainer):
     kd_mode: str = "none"                 # none | direct | decomposed
     teacher_ckpt: str | None = None
     rgb_yaml: str | None = None           # RGB yaml (required for kd_mode != none)
+    paired_yaml: str | None = None        # 6-channel yaml for the training loader only
     lambda_pres: float = 0.25
     lambda_comp: float = 0.50
     lambda_direct: float = 1.0
@@ -52,6 +53,7 @@ class KDDetectionTrainer(DetectionTrainer):
         self._paired_img: torch.Tensor | None = None
         self._stock_loss = None
         self._rgb_data = None
+        self._pair_data = None
         super().__init__(cfg, overrides, _callbacks)
 
     # ------------------------------------------------------------------ setup
@@ -156,10 +158,17 @@ class KDDetectionTrainer(DetectionTrainer):
         stride = int(max(self.model.stride).item())
         bs = batch or self.args.batch
         if self.kd_mode != "none" and mode == "train":
+            # The trainer's ``self.data`` / validator use the 3-channel IR yaml
+            # (the student is a stock IR detector). The paired 6-channel yaml is
+            # used *only* to build the training loader.
+            if not self.paired_yaml:
+                raise ValueError("paired_yaml is required for kd_mode != 'none'")
+            if self._pair_data is None:
+                self._pair_data = check_det_dataset(self.paired_yaml)
             if self._rgb_data is None:
                 self._rgb_data = check_det_dataset(self.rgb_yaml)
             return make_dataset_v2(
-                self.args, img_path, bs, self.data, mode=mode, rect=False,
+                self.args, img_path, bs, self._pair_data, mode=mode, rect=False,
                 stride=stride, modality="pair", rgb_data=self._rgb_data,
                 rgb_img_path=self._rgb_data[mode], strict_sync=self.strict_sync,
             )

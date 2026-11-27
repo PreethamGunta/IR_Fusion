@@ -109,6 +109,11 @@ training batch (6ch [IR|RGB], V2 paired loader)
 
 ## 4. Data & recipe
 
+- **Two data yamls.** The trainer and its validator use **`dv_ir.yaml`
+  (`channels: 3`)** — the student is a stock 3-channel detector, and
+  Ultralytics' validator warms up with `data["channels"]`, so a 6-channel yaml
+  here crashes on GPU. The 6-channel `dv_paired.yaml` is passed separately
+  (`--paired-yaml`) and used **only** to build the paired training loader.
 - Dataset: `scripts/build_dv_from_raw.py` rebuilds the exact audited v2 tree
   from `data/dronevehicle/raw` using the committed stem manifest
   (`assets/dv_v2_splits.json`) and the verified crop + JPEG q92 recipe
@@ -242,6 +247,10 @@ and `student_12s_decomp` > `student_12s_direct` (decomposed > naive).
   `[128, 128, 256]`. The teacher fuses at exactly these anchors, so the
   projectors map `student_anchor → teacher_anchor` per level. The code probes
   both at runtime; nothing is hardcoded.
+- **Validator warmup is GPU-only.** `AutoBackend.warmup` skips on CPU, which is
+  why the 6-channel/3-channel mismatch only surfaced on the A100. The trainer
+  now uses the 3-channel IR yaml for `args.data`, so `final_eval()` warms up a
+  3-channel dummy that matches the student.
 - **Student stem is forced to 3 channels.** The paired data yaml declares
   `channels: 6`; Ultralytics' stock `get_model` would build a 6-channel stem.
   `KDDetectionTrainer.get_model` builds `DetectionModel(..., ch=3)` explicitly.

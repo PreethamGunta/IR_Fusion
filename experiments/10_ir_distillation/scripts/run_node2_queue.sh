@@ -153,7 +153,7 @@ stage_N0() {
   say "N0: unit tests + 2-epoch smoke"
   run env "PYTHONPATH=$EXP/src:$E09/src:$E09" "$PY" -m pytest "$EXP/tests/test_irkd.py" -q
   train_student smoke_12s_decomp yolo12s.pt decomposed 0 \
-    --epochs 2 --close-mosaic 0 --patience 2
+    --epochs 2 --close-mosaic 0 --patience 2 --fresh
   export_student smoke_12s_decomp val
   if (( ! DRY )); then
     "$PY" - "$EXP/results/preds/smoke_12s_decomp_val.json" <<'EOF'
