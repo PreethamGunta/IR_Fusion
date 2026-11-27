@@ -98,6 +98,8 @@ def main() -> None:
                     help="dataset fraction (smoke tests)")
     ap.add_argument("--no-val", action="store_true",
                     help="skip validation (CPU integration smoke only)")
+    ap.add_argument("--no-plots", action="store_true",
+                    help="skip Ultralytics plots (results.png, curves, confusion matrix, batches)")
     ap.add_argument("--fresh", action="store_true",
                     help="ignore an existing last.pt and start over")
     args = ap.parse_args()
@@ -165,7 +167,7 @@ def main() -> None:
         patience=args.patience, batch=args.batch, imgsz=args.imgsz,
         seed=args.seed, workers=args.workers, deterministic=True,
         project=str(proj), name=args.name, exist_ok=True,
-        val=not args.no_val, save=True, plots=False, cache=False,
+        val=not args.no_val, save=True, plots=not args.no_plots, cache=False,
         fraction=args.fraction,
         optimizer="MuSGD", lr0=0.01, lrf=lrf, momentum=0.937,
         weight_decay=5e-4, warmup_epochs=E00_WARMUP,

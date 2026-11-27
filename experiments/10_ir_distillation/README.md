@@ -256,6 +256,10 @@ and `student_12s_decomp` > `student_12s_direct` (decomposed > naive).
   `train/kd_pres`, `train/kd_comp`, `train/kd_w` are meaningful.
 - **`--no-val` still validates once** at the final epoch (Ultralytics
   behaviour); it is only used for CPU smoke tests.
+- **Run plots are on by default** (`plots=True`, parity with the 09 runs):
+  `results.png`, `Box{P,R,F1,PR}_curve.png`, `confusion_matrix[_normalized].png`,
+  `labels.jpg`, `train_batch{0,1,2}.jpg`, `val_batch{0,1,2}_{labels,pred}.jpg`.
+  `--no-plots` disables them for quick smokes.
 
 ## 11. What must be copied to the target node (not in git)
 
