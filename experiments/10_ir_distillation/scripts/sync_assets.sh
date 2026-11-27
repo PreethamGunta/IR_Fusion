@@ -17,6 +17,7 @@ FILES=(
   "models/pretrained/yolo12s.pt"
   "models/pretrained/yolo12n.pt"
   "experiments/09_graph_fusion/runs/e30_v2_100ep/weights/best.pt"
+  "experiments/09_graph_fusion/runs/e00_ir/weights/best.pt"
   "experiments/09_graph_fusion/results/gt/dv_v2_ir_test.json"
   "experiments/09_graph_fusion/results/preds/e00_ir_test.json"
   "experiments/09_graph_fusion/results/preds/e30_v2_100ep_test.json"

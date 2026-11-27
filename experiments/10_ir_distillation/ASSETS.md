@@ -9,6 +9,7 @@ queue's `preflight` aborts with a clear message if any is missing.
 | `models/pretrained/yolo12s.pt` | 19 MB | student initialisation (N1, N4, N6) |
 | `models/pretrained/yolo12n.pt` | 5.4 MB | student initialisation (N2, N3) |
 | `experiments/09_graph_fusion/runs/e30_v2_100ep/weights/best.pt` | 30 MB | frozen E30 teacher |
+| `experiments/09_graph_fusion/runs/e00_ir/weights/best.pt` | 19 MB | E00 IR-only latency/AP reference in profiling |
 | `experiments/09_graph_fusion/results/gt/dv_v2_ir_test.json` | 22 MB | locked 8,980-image test GT |
 | `experiments/09_graph_fusion/results/preds/e00_ir_test.json` | 37 MB | E00 reference predictions (bootstrap) |
 | `experiments/09_graph_fusion/results/preds/e30_v2_100ep_test.json` | 27 MB | E30 reference predictions (bootstrap) |
